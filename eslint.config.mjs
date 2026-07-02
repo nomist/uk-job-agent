@@ -10,6 +10,14 @@ const eslintConfig = defineConfig([
   // TODO: add an import-boundary rule (e.g. eslint-plugin-boundaries) once
   // domain/application/infrastructure have real modules, so src/domain and
   // src/application can't import from src/app or src/infrastructure.
+  {
+    rules: {
+      // Test mocks sometimes need a typed-but-unused parameter (e.g. to
+      // satisfy assignability to `typeof fetch`); underscore-prefixed
+      // params opt out of the warning rather than being deleted.
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
