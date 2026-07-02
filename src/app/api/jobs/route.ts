@@ -36,9 +36,17 @@ export async function GET(request: NextRequest) {
       ? result.jobs.filter((job) => job.location.isRemote)
       : result.jobs;
 
+    // Development-only fallback: createContainer() wires in MockJobProvider
+    // (name "MOCK") when no real job provider has credentials configured.
+    // Checking the provider name here — rather than adding an isMock
+    // concept to the Application layer — keeps this purely a route/DI
+    // concern, matching how providerNames filtering already works.
+    const isMock = container.dependencies.jobProviders.some((provider) => provider.name === "MOCK");
+
     return NextResponse.json({
       jobs: jobs.map(toJobJson),
       totalListingsFound: result.totalListingsFound,
+      isMock,
     });
   } catch (error) {
     return handleApiError(error);

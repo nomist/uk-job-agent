@@ -18,3 +18,11 @@ export function loadReedConfig(env: Record<string, string | undefined> = process
     apiKey: env.REED_API_KEY,
   });
 }
+
+/**
+ * Non-throwing counterpart to loadReedConfig(), used by the DI container to
+ * decide whether ReedJobProvider can be constructed at all.
+ */
+export function hasReedCredentials(env: Record<string, string | undefined> = process.env): boolean {
+  return reedConfigSchema.safeParse({ apiKey: env.REED_API_KEY }).success;
+}

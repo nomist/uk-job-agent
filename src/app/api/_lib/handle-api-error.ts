@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
 import {
   ApplicationLayerError,
   ApplicationNotFoundError,
@@ -36,12 +35,14 @@ export function handleApiError(error: unknown): NextResponse {
     );
   }
 
-  if (error instanceof ZodError) {
-    return NextResponse.json(
-      { error: { message: "Validation failed", issues: error.issues } },
-      { status: 400 },
-    );
-  }
+  // Deliberately no generic `ZodError -> 400` branch: parseJsonBody/parseQuery
+  // (this file's actual request-validation entry points) always wrap zod
+  // failures in ApiValidationError before throwing, so a *raw* ZodError
+  // reaching here means zod was used somewhere else — e.g. an adapter's
+  // config loader validating a missing env var deep inside a use case call.
+  // That's a server misconfiguration, not a bad request, so it falls
+  // through to the generic 500 below rather than being misreported as 400
+  // (and rather than leaking internal schema field names to the caller).
 
   if (
     error instanceof JobNotFoundError ||
