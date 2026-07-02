@@ -153,4 +153,75 @@ describe("PrismaApplicationRepository", () => {
     expect(await repository.findById("missing")).toBeNull();
     expect(await repository.findByUserAndJob("missing", "missing")).toBeNull();
   });
+
+  it("findByUserId returns all of that user's applications, of every status", async () => {
+    const { user, job: jobA, resume } = await seedJobAndResume(prisma);
+    const company = await createTestCompany(prisma);
+    const jobB = await createTestJobRow(prisma, company.id, { externalId: randomUUID() });
+    const otherUser = await createTestUser(prisma);
+
+    await repository.save(
+      Application.create({
+        id: randomUUID(),
+        userId: user.id,
+        jobId: jobA.id,
+        resumeId: resume.id,
+        appliedAt: new Date("2026-01-01T00:00:00Z"),
+      }),
+    );
+    await repository.save(
+      Application.create({
+        id: randomUUID(),
+        userId: user.id,
+        jobId: jobB.id,
+        resumeId: resume.id,
+        appliedAt: new Date("2026-01-02T00:00:00Z"),
+      }).transitionTo("REJECTED", new Date("2026-01-03T00:00:00Z")),
+    );
+    await repository.save(
+      Application.create({
+        id: randomUUID(),
+        userId: otherUser.id,
+        jobId: jobB.id,
+        resumeId: resume.id,
+        appliedAt: new Date(),
+      }),
+    );
+
+    const found = await repository.findByUserId(user.id);
+
+    expect(found).toHaveLength(2);
+    expect(found.map((application) => application.status.value).sort()).toEqual([
+      "APPLIED",
+      "REJECTED",
+    ]);
+  });
+
+  it("findByUserId returns an empty array for a user with no applications", async () => {
+    expect(await repository.findByUserId("missing-user")).toEqual([]);
+  });
+
+  it("saves an application whose userId has no pre-existing User row (auto-creates a placeholder)", async () => {
+    // Mirrors PrismaSavedJobRepository's fix: no auth exists yet, so
+    // callers pass an opaque userId that may not correspond to any
+    // existing User row. Must not fail with a foreign key violation.
+    const company = await createTestCompany(prisma);
+    const job = await createTestJobRow(prisma, company.id);
+    const userId = `placeholder-user-${randomUUID()}`;
+
+    await repository.save(
+      Application.create({
+        id: randomUUID(),
+        userId,
+        jobId: job.id,
+        appliedAt: new Date(),
+      }),
+    );
+
+    const found = await repository.findByUserId(userId);
+    expect(found).toHaveLength(1);
+
+    const userRow = await prisma.user.findUnique({ where: { id: userId } });
+    expect(userRow).not.toBeNull();
+  });
 });

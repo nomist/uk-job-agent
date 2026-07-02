@@ -90,4 +90,42 @@ describe("SavedJobsScreen", () => {
     await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("marks a saved job as applied and immediately shows the applied confirmation", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/applications") {
+        return jsonResponse({
+          application: {
+            id: "app1",
+            userId: "local-dev-user",
+            jobId: "j1",
+            resumeId: "default-resume",
+            status: "APPLIED",
+            appliedAt: "2026-02-11T00:00:00.000Z",
+            notes: null,
+            statusHistory: [],
+          },
+        });
+      }
+      return jsonResponse(savedJobsBody);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SavedJobsScreen />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Mark as applied" }));
+
+    await waitFor(() => expect(screen.getByText("Applied ✓")).toBeInTheDocument());
+    // The saved indicator should still be visible alongside it.
+    expect(screen.getByText(/Saved 10 Feb 2026/)).toBeInTheDocument();
+
+    const applyCall = fetchMock.mock.calls.find((call) => String(call[0]) === "/api/applications");
+    expect(JSON.parse((applyCall?.[1] as RequestInit).body as string)).toEqual({
+      jobId: "j1",
+      userId: "local-dev-user",
+    });
+  });
 });

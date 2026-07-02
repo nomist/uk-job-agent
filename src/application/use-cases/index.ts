@@ -4,6 +4,7 @@ export * from "./dismiss-job.use-case";
 export * from "./list-saved-jobs.use-case";
 export * from "./create-application.use-case";
 export * from "./update-application-status.use-case";
+export * from "./list-applications.use-case";
 export * from "./score-job-match.use-case";
 export * from "./generate-cover-letter.use-case";
 export * from "./suggest-cv-improvements.use-case";

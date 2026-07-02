@@ -38,6 +38,14 @@ export class PrismaApplicationRepository implements ApplicationRepository {
     return applications.find((application) => application.isActive()) ?? applications[0];
   }
 
+  async findByUserId(userId: string): Promise<Application[]> {
+    const rows = await this.prisma.application.findMany({
+      where: { userId },
+      include: { statusChanges: true },
+    });
+    return rows.map(toDomainApplication);
+  }
+
   /**
    * Upserts the Application row, then replaces its StatusChange rows
    * wholesale from `application.statusHistory` rather than diffing for new
@@ -46,6 +54,7 @@ export class PrismaApplicationRepository implements ApplicationRepository {
    * update paths identical instead of branching.
    */
   async save(application: Application): Promise<void> {
+    await this.ensureUserExists(application.userId);
     const applicationRow = toApplicationRow(application);
     await this.prisma.$transaction([
       this.prisma.application.upsert({
@@ -56,5 +65,20 @@ export class PrismaApplicationRepository implements ApplicationRepository {
       this.prisma.statusChange.deleteMany({ where: { applicationId: application.id } }),
       this.prisma.statusChange.createMany({ data: toStatusChangeRows(application) }),
     ]);
+  }
+
+  /**
+   * Application.userId is a real foreign key to User.id, but there's no
+   * authentication yet — same gap as SavedJob.userId (see
+   * PrismaSavedJobRepository), fixed the same way: upsert a minimal
+   * placeholder User row keyed by that userId so creating/updating an
+   * application never fails with a foreign key violation.
+   */
+  private async ensureUserExists(userId: string): Promise<void> {
+    await this.prisma.user.upsert({
+      where: { id: userId },
+      create: { id: userId, email: `${userId}@users.local` },
+      update: {},
+    });
   }
 }

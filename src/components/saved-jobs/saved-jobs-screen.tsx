@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createApplication } from "@/lib/api/applications-client";
 import { CURRENT_USER_ID } from "@/lib/api/current-user";
 import { listSavedJobs, type SavedJobWithDetailsJson } from "@/lib/api/saved-jobs-client";
 import { SavedJobsList, type SavedJobsStatus } from "./saved-jobs-list";
@@ -38,6 +39,10 @@ export function SavedJobsScreen() {
     void fetchSavedJobs();
   }
 
+  async function handleMarkApplied(jobId: string) {
+    await createApplication(jobId, CURRENT_USER_ID);
+  }
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">
       <div>
@@ -52,6 +57,7 @@ export function SavedJobsScreen() {
         savedJobs={savedJobs}
         errorMessage={errorMessage}
         onRetry={handleRetry}
+        onMarkApplied={handleMarkApplied}
       />
     </main>
   );

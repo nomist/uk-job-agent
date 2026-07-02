@@ -12,6 +12,7 @@ interface JobResultsListProps {
   errorMessage?: string;
   onRetry?: () => void;
   onSaveJob?: (jobId: string) => Promise<void>;
+  onMarkApplied?: (jobId: string) => Promise<void>;
 }
 
 export function JobResultsList({
@@ -20,6 +21,7 @@ export function JobResultsList({
   errorMessage,
   onRetry,
   onSaveJob,
+  onMarkApplied,
 }: JobResultsListProps) {
   if (status === "loading") return <LoadingState />;
   if (status === "error") {
@@ -43,7 +45,7 @@ export function JobResultsList({
     <ul className="flex flex-col gap-3">
       {jobs.map((job) => (
         <li key={job.id}>
-          <JobCard job={job} onSave={onSaveJob} />
+          <JobCard job={job} onSave={onSaveJob} onMarkApplied={onMarkApplied} />
         </li>
       ))}
     </ul>

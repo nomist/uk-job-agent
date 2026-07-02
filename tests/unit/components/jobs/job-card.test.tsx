@@ -124,4 +124,51 @@ describe("JobCard", () => {
     expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Save")).not.toBeInTheDocument();
   });
+
+  it("does not render a Mark as applied control when onMarkApplied is not given", () => {
+    render(<JobCard job={buildJob()} />);
+    expect(screen.queryByRole("button", { name: /mark as applied/i })).not.toBeInTheDocument();
+  });
+
+  it("calls onMarkApplied with the job id and shows an applied confirmation on success", async () => {
+    const user = userEvent.setup();
+    const onMarkApplied = vi.fn().mockResolvedValue(undefined);
+    render(<JobCard job={buildJob({ id: "job-42" })} onMarkApplied={onMarkApplied} />);
+
+    await user.click(screen.getByRole("button", { name: "Mark as applied" }));
+
+    expect(onMarkApplied).toHaveBeenCalledWith("job-42");
+    await waitFor(() => expect(screen.getByText("Applied ✓")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Mark as applied" })).not.toBeInTheDocument();
+  });
+
+  it("shows an error and lets the user retry when onMarkApplied rejects", async () => {
+    const user = userEvent.setup();
+    const onMarkApplied = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("already applied"))
+      .mockResolvedValueOnce(undefined);
+    render(<JobCard job={buildJob()} onMarkApplied={onMarkApplied} />);
+
+    await user.click(screen.getByRole("button", { name: "Mark as applied" }));
+
+    await waitFor(() => expect(screen.getByText("already applied")).toBeInTheDocument());
+    const retryButton = screen.getByRole("button", { name: "Retry" });
+
+    await user.click(retryButton);
+    await waitFor(() => expect(screen.getByText("Applied ✓")).toBeInTheDocument());
+    expect(onMarkApplied).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows both the saved indicator and a functional Mark as applied control on the Saved Jobs screen", async () => {
+    const user = userEvent.setup();
+    const onMarkApplied = vi.fn().mockResolvedValue(undefined);
+    render(
+      <JobCard job={buildJob()} savedAt="2026-02-10T00:00:00.000Z" onMarkApplied={onMarkApplied} />,
+    );
+
+    expect(screen.getByText(/Saved 10 Feb 2026/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mark as applied" }));
+    expect(onMarkApplied).toHaveBeenCalled();
+  });
 });
