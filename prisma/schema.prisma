@@ -1,6 +1,14 @@
 // UK Job Agent — Prisma schema
-// Milestone 1 scaffold: placeholder model only. Full domain schema (Job,
-// Application, MatchScore, etc. — see Domain RFC) lands in a later milestone.
+//
+// Mirrors the entities implemented in src/domain and the repositories
+// implied by src/application/ports as of Milestone 3. Models that don't yet
+// have a domain entity or a requested repository port (CoverLetter,
+// CVSuggestion, DailyDigest, SearchSession, a JobProvider entity,
+// CareerGoals/Preferences as separate tables) are intentionally omitted —
+// see the "deviations" note in the milestone write-up for the reasoning.
+//
+// Repositories are not implemented yet (Milestone 4.2+); this schema exists
+// so `prisma generate`/`migrate dev` produce a client to build them against.
 
 generator client {
   provider = "prisma-client"
@@ -11,9 +19,246 @@ datasource db {
   provider = "sqlite"
 }
 
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERNSHIP
+}
+
+enum VisaStatus {
+  REQUIRES_SPONSORSHIP
+  NO_SPONSORSHIP_NEEDED
+  UNKNOWN
+}
+
+// Amended from the original Domain RFC's single "Interview" state to match
+// src/domain/value-objects/application-status.ts (HR Screen / Technical /
+// Final), per the Feature Spec's flagged required amendment.
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  HR_SCREEN
+  TECHNICAL_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+// Mirrors application/dto/saved-job.dto.ts's SavedJobStatus — SavedJob
+// doubles as the general per-user Job-state store (saved vs. dismissed).
+enum SavedJobStatus {
+  SAVED
+  DISMISSED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  profile      Profile?
+  applications Application[]
+  savedJobs    SavedJob[]
+}
+
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  headline          String?
+  yearsOfExperience Int?
+
+  // string[] on the domain entity — SQLite has no native array/enum-array
+  // type, so this is stored as a JSON-encoded string list.
+  skills String @default("[]")
+
+  salaryExpectationMin      Int?
+  salaryExpectationMax      Int?
+  salaryExpectationCurrency String?
+
+  // WorkMode[] on the domain entity — same JSON-array caveat as `skills`.
+  workPreferences String     @default("[]")
+  visaStatus      VisaStatus @default(UNKNOWN)
+
+  updatedAt DateTime @updatedAt
+
+  resumes     Resume[]
+  matchScores MatchScore[]
+
+  @@index([userId])
+}
+
+model Resume {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  label   String
+  content String
+
+  // string[] on the domain entity — JSON-encoded, see Profile.skills.
+  parsedSkills String  @default("[]")
+  isPrimary    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  applications Application[]
+  matchScores  MatchScore[]
+
+  // Enforcing "exactly one primary per profile" is a cross-entity invariant
+  // (spans multiple Resume rows) — left to the application/repository layer
+  // per the Milestone 2 decision, not a DB constraint here.
+  @@index([profileId, isPrimary])
+}
+
+model Company {
+  id             String  @id @default(cuid())
+  name           String
+  normalizedName String  @unique
+  website        String?
+  industry       String?
+
+  jobs Job[]
+}
+
+model Job {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Plain identifier, not a relation — no JobProvider entity is modeled yet
+  // (see src/domain/entities/job.ts).
+  provider   String
+  externalId String
+
+  title       String
+  description String
+
+  locationCity    String?
+  locationRegion  String?
+  locationCountry String
+  isRemote        Boolean @default(false)
+
+  salaryMin      Int?
+  salaryMax      Int?
+  salaryCurrency String?
+
+  employmentType EmploymentType?
+  workMode       WorkMode?
+
+  url         String
+  postedAt    DateTime?
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  isExpired   Boolean   @default(false)
+
+  // Self-relation for cross-provider dedup grouping (Job.assignToCanonical).
+  canonicalJobId String?
+  canonicalJob   Job?  @relation("JobDuplicates", fields: [canonicalJobId], references: [id])
+  duplicates     Job[] @relation("JobDuplicates")
+
+  savedJobs    SavedJob[]
+  applications Application[]
+  matchScores  MatchScore[]
+
+  @@unique([provider, externalId])
+  @@index([companyId])
+  @@index([postedAt])
+}
+
+// Backs application/dto/saved-job.dto.ts's SavedJobRecord. A single record
+// per (userId, jobId) covers both the "saved" and "dismissed" states —
+// SaveJobUseCase / DismissJobUseCase upsert the status field in place.
+model SavedJob {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id])
+
+  status  SavedJobStatus @default(SAVED)
+  savedAt DateTime       @default(now())
+  notes   String?
+
+  @@unique([userId, jobId])
+}
+
+model Application {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id])
+
+  resumeId String?
+  resume   Resume? @relation(fields: [resumeId], references: [id])
+
+  currentStatus ApplicationStatus @default(APPLIED)
+  appliedAt     DateTime          @default(now())
+  notes         String?
+
+  statusChanges StatusChange[]
+
+  // No @@unique([userId, jobId]): CreateApplicationUseCase allows
+  // re-applying once a prior application for the same (userId, jobId)
+  // reaches a terminal state, so more than one historical row can exist.
+  // See the "deviations" note for the resulting ambiguity this leaves for
+  // ApplicationRepository.findByUserAndJob to resolve in Milestone 4.2.
+  @@index([userId, jobId])
+  @@index([currentStatus])
+}
+
+// Backs Application.statusHistory (src/domain/entities/application.ts).
+model StatusChange {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  fromStatus ApplicationStatus?
+  toStatus   ApplicationStatus
+  changedAt  DateTime           @default(now())
+  note       String?
+
+  @@index([applicationId])
+}
+
+model MatchScore {
+  id String @id @default(cuid())
+
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id])
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id])
+  resumeId  String
+  resume    Resume  @relation(fields: [resumeId], references: [id])
+
+  score Int
+
+  // Stores only the raw 0-1 value — `band` is a pure function of it
+  // (ConfidenceScore.create in src/domain/value-objects/confidence-score.ts)
+  // and is recomputed on read rather than persisted redundantly.
+  confidence Float
+
+  rationale String
+
+  // string[] on the domain entity — JSON-encoded, see Profile.skills.
+  missingSkills String @default("[]")
+
+  modelVersion String
+  isLatest     Boolean  @default(true)
+  generatedAt  DateTime @default(now())
+
+  @@index([jobId, resumeId, isLatest])
 }
