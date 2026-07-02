@@ -1,0 +1,6 @@
+.next/
+node_modules/
+src/generated/
+coverage/
+prisma/migrations/
+dev.db

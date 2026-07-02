@@ -1,0 +1,19 @@
+// UK Job Agent — Prisma schema
+// Milestone 1 scaffold: placeholder model only. Full domain schema (Job,
+// Application, MatchScore, etc. — see Domain RFC) lands in a later milestone.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
