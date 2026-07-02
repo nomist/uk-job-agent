@@ -15,6 +15,10 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
     return null;
   }
 
+  async findByUserId(userId: string): Promise<Application[]> {
+    return [...this.applications.values()].filter((application) => application.userId === userId);
+  }
+
   async save(application: Application): Promise<void> {
     this.applications.set(application.id, application);
   }

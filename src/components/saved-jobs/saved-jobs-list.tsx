@@ -11,9 +11,16 @@ interface SavedJobsListProps {
   savedJobs: SavedJobWithDetailsJson[];
   errorMessage?: string;
   onRetry?: () => void;
+  onMarkApplied?: (jobId: string) => Promise<void>;
 }
 
-export function SavedJobsList({ status, savedJobs, errorMessage, onRetry }: SavedJobsListProps) {
+export function SavedJobsList({
+  status,
+  savedJobs,
+  errorMessage,
+  onRetry,
+  onMarkApplied,
+}: SavedJobsListProps) {
   if (status === "loading") return <LoadingState />;
   if (status === "error") {
     return <ErrorState message={errorMessage ?? "Unknown error"} onRetry={onRetry} />;
@@ -31,7 +38,7 @@ export function SavedJobsList({ status, savedJobs, errorMessage, onRetry }: Save
     <ul className="flex flex-col gap-3">
       {savedJobs.map(({ savedJob, job }) => (
         <li key={savedJob.id}>
-          <JobCard job={job} savedAt={savedJob.savedAt} />
+          <JobCard job={job} savedAt={savedJob.savedAt} onMarkApplied={onMarkApplied} />
         </li>
       ))}
     </ul>

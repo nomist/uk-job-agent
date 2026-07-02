@@ -109,4 +109,59 @@ describe("POST /api/applications", () => {
 
     expect(response.status).toBe(400);
   });
+
+  it("creates an application without resumeId by auto-provisioning a default resume (Mark as applied)", async () => {
+    handles = buildTestContainer();
+    seedJobAndResume(handles);
+    // No resume seeded for this user — the route must resolve one itself.
+
+    const response = await POST(jsonRequest({ userId: "u2", jobId: "j1" }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.application.status).toBe("APPLIED");
+    expect(body.application.resumeId).not.toBeNull();
+
+    const profile = await handles.profileRepository.findByUserId("u2");
+    expect(profile).not.toBeNull();
+    const resume = await handles.resumeRepository.findPrimaryByProfileId(profile!.id);
+    expect(resume?.id).toBe(body.application.resumeId);
+  });
+
+  it("reuses the same default resume across repeated Mark-as-applied calls for the same user", async () => {
+    handles = buildTestContainer();
+    seedJobAndResume(handles);
+    handles.jobRepository.seed(
+      Job.create({
+        id: "j2",
+        companyId: "c1",
+        provider: "ADZUNA",
+        externalId: "j2",
+        title: "Other Role",
+        description: "desc",
+        url: "https://example.com/jobs/2",
+        location: Location.create({ country: "UK", isRemote: true }),
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      }),
+    );
+
+    const first = await POST(jsonRequest({ userId: "u3", jobId: "j1" }));
+    const second = await POST(jsonRequest({ userId: "u3", jobId: "j2" }));
+
+    const firstBody = await first.json();
+    const secondBody = await second.json();
+    expect(firstBody.application.resumeId).toBe(secondBody.application.resumeId);
+  });
+
+  it("uses the explicitly supplied resumeId instead of the default when one is given", async () => {
+    handles = buildTestContainer();
+    seedJobAndResume(handles);
+
+    const response = await POST(jsonRequest({ userId: "u4", jobId: "j1", resumeId: "r1" }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.application.resumeId).toBe("r1");
+  });
 });

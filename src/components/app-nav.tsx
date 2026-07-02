@@ -16,6 +16,12 @@ export function AppNav() {
         >
           Saved Jobs
         </Link>
+        <Link
+          href="/applications"
+          className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
+        >
+          Applications
+        </Link>
       </div>
     </nav>
   );

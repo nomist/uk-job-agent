@@ -205,4 +205,66 @@ describe("JobSearchScreen", () => {
       userId: "local-dev-user",
     });
   });
+
+  it("marks a job as applied from search results and immediately shows the applied confirmation", async () => {
+    const user = userEvent.setup();
+    const searchBody: JobSearchResponse = {
+      jobs: [
+        {
+          id: "job-42",
+          companyId: "acme",
+          provider: "ADZUNA",
+          externalId: "1",
+          title: "Staff Engineer",
+          description: "desc",
+          location: { city: "London", region: null, country: "UK", isRemote: false },
+          url: "https://example.com/jobs/1",
+          salaryRange: null,
+          employmentType: null,
+          workMode: null,
+          postedAt: null,
+          firstSeenAt: "2026-01-01T00:00:00.000Z",
+          lastSeenAt: "2026-01-01T00:00:00.000Z",
+          isExpired: false,
+          canonicalJobId: null,
+        },
+      ],
+      totalListingsFound: 1,
+      isMock: false,
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/applications") {
+        return jsonResponse({
+          application: {
+            id: "app1",
+            userId: "local-dev-user",
+            jobId: "job-42",
+            resumeId: "default-resume",
+            status: "APPLIED",
+            appliedAt: "2026-01-02T00:00:00.000Z",
+            notes: null,
+            statusHistory: [],
+          },
+        });
+      }
+      return jsonResponse(searchBody);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<JobSearchScreen />);
+
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Mark as applied" }));
+
+    await waitFor(() => expect(screen.getByText("Applied ✓")).toBeInTheDocument());
+
+    const applyCall = fetchMock.mock.calls.find((call) => String(call[0]) === "/api/applications");
+    expect(JSON.parse((applyCall?.[1] as RequestInit).body as string)).toEqual({
+      jobId: "job-42",
+      userId: "local-dev-user",
+    });
+  });
 });
