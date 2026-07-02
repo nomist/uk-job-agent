@@ -38,7 +38,13 @@ export interface ContainerDependencies {
 export interface Container {
   /** Exposed for introspection/testing — not part of the use-case surface. */
   readonly dependencies: ContainerDependencies;
-  searchJobs(): SearchJobsUseCase;
+  /**
+   * Optionally scoped to a subset of provider names (e.g. `["ADZUNA"]`) —
+   * lets a caller (the `?provider=` query param on GET /api/jobs) narrow
+   * which providers a search hits, without SearchJobsUseCase itself
+   * needing a provider-filter concept.
+   */
+  searchJobs(providerNames?: readonly string[]): SearchJobsUseCase;
   saveJob(): SaveJobUseCase;
   dismissJob(): DismissJobUseCase;
   createApplication(): CreateApplicationUseCase;
@@ -87,7 +93,13 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
 
   return {
     dependencies,
-    searchJobs: () => new SearchJobsUseCase(dependencies.jobProviders, dependencies.jobRepository),
+    searchJobs: (providerNames) => {
+      const providers =
+        providerNames && providerNames.length > 0
+          ? dependencies.jobProviders.filter((provider) => providerNames.includes(provider.name))
+          : dependencies.jobProviders;
+      return new SearchJobsUseCase(providers, dependencies.jobRepository);
+    },
     saveJob: () => new SaveJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
     dismissJob: () =>
       new DismissJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),

@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { handleApiError } from "@/app/api/_lib/handle-api-error";
+import { parseQuery } from "@/app/api/_lib/parse-request";
+import { toJobJson } from "@/app/api/_lib/serializers";
+import { getContainer } from "@/lib/di/get-container";
+
+const searchJobsQuerySchema = z.object({
+  q: z.string().trim().min(1).optional(),
+  location: z.string().trim().min(1).optional(),
+  salaryMin: z.coerce.number().int().nonnegative().optional(),
+  // Any value other than the literal string "true" (including absent) means "no filter".
+  remoteOnly: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
+  provider: z.string().trim().toUpperCase().optional(),
+});
+
+export async function GET(request: NextRequest) {
+  try {
+    const query = parseQuery(new URL(request.url).searchParams, searchJobsQuerySchema);
+
+    const container = getContainer();
+    const providerNames = query.provider ? [query.provider] : undefined;
+    const result = await container.searchJobs(providerNames).execute({
+      keywords: query.q,
+      location: query.location,
+      salaryMin: query.salaryMin,
+    });
+
+    // remoteOnly has no equivalent in JobProviderSearchParams (Application
+    // layer) — applied here as a response-side filter over already-mapped
+    // Job entities, not as a use-case concern.
+    const jobs = query.remoteOnly
+      ? result.jobs.filter((job) => job.location.isRemote)
+      : result.jobs;
+
+    return NextResponse.json({
+      jobs: jobs.map(toJobJson),
+      totalListingsFound: result.totalListingsFound,
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
