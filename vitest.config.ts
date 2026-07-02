@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts", "src/**/*.test.ts"],
+    setupFiles: ["tests/setup.ts"],
     globalSetup: ["tests/integration/global-setup.ts"],
     // Integration tests share one SQLite test database file; running test
     // files concurrently would race on it.
