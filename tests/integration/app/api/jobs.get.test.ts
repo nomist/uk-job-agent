@@ -124,4 +124,49 @@ describe("GET /api/jobs", () => {
     const body = await response.json();
     expect(body.error.message).toBeDefined();
   });
+
+  it("reports isMock: false when the wired providers are real (non-MOCK) providers", async () => {
+    handles = buildTestContainer({
+      jobProviders: [new FakeJobProvider("ADZUNA", [])],
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+    const body = await response.json();
+
+    expect(body.isMock).toBe(false);
+  });
+
+  it("reports isMock: true when the wired provider is named MOCK", async () => {
+    handles = buildTestContainer({
+      jobProviders: [
+        new FakeJobProvider("MOCK", [
+          {
+            provider: "MOCK",
+            externalId: "mock-1",
+            companyId: "sample co",
+            title: "Sample Engineer",
+            description: "desc",
+            url: "https://example.com/mock-jobs/1",
+            location: { country: "UK", isRemote: true },
+          },
+        ]),
+      ],
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+    const body = await response.json();
+
+    expect(body.isMock).toBe(true);
+    expect(body.jobs).toHaveLength(1);
+  });
+
+  it("reports isMock: false when zero providers are configured (not the same as mock)", async () => {
+    handles = buildTestContainer({ jobProviders: [] });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+    const body = await response.json();
+
+    expect(body.isMock).toBe(false);
+    expect(body.jobs).toEqual([]);
+  });
 });

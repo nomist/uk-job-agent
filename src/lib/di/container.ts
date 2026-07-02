@@ -8,13 +8,17 @@ import { SavedJobRepository } from "@/application/ports/saved-job-repository.por
 import { CreateApplicationUseCase } from "@/application/use-cases/create-application.use-case";
 import { DismissJobUseCase } from "@/application/use-cases/dismiss-job.use-case";
 import { GenerateCoverLetterUseCase } from "@/application/use-cases/generate-cover-letter.use-case";
+import { ListSavedJobsUseCase } from "@/application/use-cases/list-saved-jobs.use-case";
 import { SaveJobUseCase } from "@/application/use-cases/save-job.use-case";
 import { ScoreJobMatchUseCase } from "@/application/use-cases/score-job-match.use-case";
 import { SearchJobsUseCase } from "@/application/use-cases/search-jobs.use-case";
 import { SuggestCVImprovementsUseCase } from "@/application/use-cases/suggest-cv-improvements.use-case";
 import { UpdateApplicationStatusUseCase } from "@/application/use-cases/update-application-status.use-case";
 import { PrismaClient } from "@/generated/prisma/client";
+import { hasAdzunaCredentials } from "@/infrastructure/job-providers/adzuna/adzuna-config";
 import { AdzunaJobProvider } from "@/infrastructure/job-providers/adzuna/adzuna-provider";
+import { MockJobProvider } from "@/infrastructure/job-providers/mock/mock-job-provider";
+import { hasReedCredentials } from "@/infrastructure/job-providers/reed/reed-config";
 import { ReedJobProvider } from "@/infrastructure/job-providers/reed/reed-provider";
 import { OpenAiProvider } from "@/infrastructure/llm/openai/openai-provider";
 import { prisma as sharedPrisma } from "@/infrastructure/persistence/prisma/client";
@@ -47,6 +51,7 @@ export interface Container {
   searchJobs(providerNames?: readonly string[]): SearchJobsUseCase;
   saveJob(): SaveJobUseCase;
   dismissJob(): DismissJobUseCase;
+  listSavedJobs(): ListSavedJobsUseCase;
   createApplication(): CreateApplicationUseCase;
   updateApplicationStatus(): UpdateApplicationStatusUseCase;
   scoreJobMatch(): ScoreJobMatchUseCase;
@@ -55,40 +60,123 @@ export interface Container {
 }
 
 /**
+ * Real job providers are wired in individually — a provider missing its
+ * credentials is simply excluded rather than causing the whole container
+ * to throw (previously, e.g., a missing Reed key broke Adzuna search too).
+ * In development only, if that leaves zero configured providers, a fixed
+ * set of sample listings is used instead (see mock-job-provider.ts) so the
+ * Job Search screen still works without any API keys set up locally.
+ * Production never falls back to mock data: with zero configured
+ * providers there, search legitimately returns zero results, which is the
+ * correct signal that the deployment is misconfigured.
+ */
+function resolveDefaultJobProviders(): JobProvider[] {
+  const configured: JobProvider[] = [];
+  if (hasAdzunaCredentials()) configured.push(new AdzunaJobProvider());
+  if (hasReedCredentials()) configured.push(new ReedJobProvider());
+
+  if (configured.length === 0 && process.env.NODE_ENV === "development") {
+    return [new MockJobProvider()];
+  }
+
+  return configured;
+}
+
+/** Memoizing thunk: `factory` runs at most once, on first call, and the result is cached. */
+function lazy<T>(factory: () => T): () => T {
+  let cached: T | undefined;
+  let hasValue = false;
+  return () => {
+    if (!hasValue) {
+      cached = factory();
+      hasValue = true;
+    }
+    return cached as T;
+  };
+}
+
+/**
  * Composition root: the only place that knows both the application ports
  * and their concrete infrastructure implementations.
  *
- * Deliberately does NOT instantiate a module-level default container (no
- * `export const container = createContainer()`) — doing so would construct
- * AdzunaJobProvider/ReedJobProvider/OpenAiProvider (and therefore validate
- * their env vars) merely by importing this file, which would break any
- * caller — including tests — that wants to override those dependencies
- * with fakes. Each call builds its own set of dependencies; the shared
- * Prisma client is the one exception (see below).
+ * Every dependency (other than the shared Prisma client) is constructed
+ * lazily — on first read of the corresponding `dependencies.*` property,
+ * not when createContainer() itself runs. This matters most for
+ * `aiProvider`: constructing OpenAiProvider validates OPENAI_API_KEY, and
+ * eagerly building it meant every route — including GET /api/jobs, which
+ * never touches AI — failed if that key was missing. Now a route only pays
+ * for (and validates credentials for) the dependencies it actually reads;
+ * `container.searchJobs()` never touches `dependencies.aiProvider` at all,
+ * while `container.scoreJobMatch()` (and friends) still construct and
+ * validate it as an argument, so AI routes fail exactly as before when
+ * OPENAI_API_KEY is missing — just later, and only for those routes.
  *
- * No other global mutable state is introduced: repositories and providers
- * are stateless wrappers (safe to construct freely or share), and each
- * factory method below returns a brand-new use-case instance per call.
+ * Deliberately does NOT instantiate a module-level default container (no
+ * `export const container = createContainer()`) — doing so would still let
+ * a stray early property read validate credentials no caller asked for.
+ * Each call builds its own set of lazy dependencies; the shared Prisma
+ * client is the one exception (see below).
+ *
+ * No other global mutable state is introduced: each lazy() thunk caches
+ * only within its own createContainer() call, and every factory method on
+ * the returned Container still returns a brand-new use-case instance per
+ * call.
  */
 export function createContainer(overrides: Partial<ContainerDependencies> = {}): Container {
   const prismaClient = overrides.prisma ?? sharedPrisma;
 
+  const getJobRepository = overrides.jobRepository
+    ? () => overrides.jobRepository!
+    : lazy(() => new PrismaJobRepository(prismaClient));
+  const getSavedJobRepository = overrides.savedJobRepository
+    ? () => overrides.savedJobRepository!
+    : lazy(() => new PrismaSavedJobRepository(prismaClient));
+  const getApplicationRepository = overrides.applicationRepository
+    ? () => overrides.applicationRepository!
+    : lazy(() => new PrismaApplicationRepository(prismaClient));
+  const getResumeRepository = overrides.resumeRepository
+    ? () => overrides.resumeRepository!
+    : lazy(() => new PrismaResumeRepository(prismaClient));
+  const getProfileRepository = overrides.profileRepository
+    ? () => overrides.profileRepository!
+    : lazy(() => new PrismaProfileRepository(prismaClient));
+  // Adding a new job provider is one more entry in
+  // resolveDefaultJobProviders() — SearchJobsUseCase already accepts any
+  // number of JobProvider implementations.
+  const getJobProviders = overrides.jobProviders
+    ? () => overrides.jobProviders!
+    : lazy(resolveDefaultJobProviders);
+  // Swappable: replace or add to this construction to introduce
+  // Claude/Anthropic alongside or instead of OpenAI. AiProvider is the
+  // only thing every AI-related use case depends on, so nothing else in
+  // the container, application, or domain layers needs to change.
+  const getAiProvider = overrides.aiProvider
+    ? () => overrides.aiProvider!
+    : lazy(() => new OpenAiProvider());
+
   const dependencies: ContainerDependencies = {
     prisma: prismaClient,
-    jobRepository: overrides.jobRepository ?? new PrismaJobRepository(prismaClient),
-    savedJobRepository: overrides.savedJobRepository ?? new PrismaSavedJobRepository(prismaClient),
-    applicationRepository:
-      overrides.applicationRepository ?? new PrismaApplicationRepository(prismaClient),
-    resumeRepository: overrides.resumeRepository ?? new PrismaResumeRepository(prismaClient),
-    profileRepository: overrides.profileRepository ?? new PrismaProfileRepository(prismaClient),
-    // Adding a new job provider is one more entry here — SearchJobsUseCase
-    // already accepts any number of JobProvider implementations.
-    jobProviders: overrides.jobProviders ?? [new AdzunaJobProvider(), new ReedJobProvider()],
-    // Swappable: replace or add to this single line to introduce
-    // Claude/Anthropic alongside or instead of OpenAI. AiProvider is the
-    // only thing every AI-related use case depends on, so nothing else in
-    // the container, application, or domain layers needs to change.
-    aiProvider: overrides.aiProvider ?? new OpenAiProvider(),
+    get jobRepository() {
+      return getJobRepository();
+    },
+    get savedJobRepository() {
+      return getSavedJobRepository();
+    },
+    get applicationRepository() {
+      return getApplicationRepository();
+    },
+    get resumeRepository() {
+      return getResumeRepository();
+    },
+    get profileRepository() {
+      return getProfileRepository();
+    },
+    get jobProviders() {
+      return getJobProviders();
+    },
+    get aiProvider() {
+      return getAiProvider();
+    },
   };
 
   return {
@@ -103,6 +191,8 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
     saveJob: () => new SaveJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
     dismissJob: () =>
       new DismissJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
+    listSavedJobs: () =>
+      new ListSavedJobsUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
     createApplication: () =>
       new CreateApplicationUseCase(
         dependencies.applicationRepository,

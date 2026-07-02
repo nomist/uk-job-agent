@@ -24,3 +24,17 @@ export function loadAdzunaConfig(
     country: env.ADZUNA_COUNTRY,
   });
 }
+
+/**
+ * Non-throwing counterpart to loadAdzunaConfig(), used by the DI container
+ * to decide whether AdzunaJobProvider can be constructed at all — without
+ * this, checking availability would mean catching the exception
+ * loadAdzunaConfig() throws on missing credentials.
+ */
+export function hasAdzunaCredentials(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return adzunaConfigSchema
+    .pick({ appId: true, appKey: true })
+    .safeParse({ appId: env.ADZUNA_APP_ID, appKey: env.ADZUNA_APP_KEY }).success;
+}

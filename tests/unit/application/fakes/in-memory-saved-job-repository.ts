@@ -12,6 +12,10 @@ export class InMemorySavedJobRepository implements SavedJobRepository {
     return this.records.get(this.key(userId, jobId)) ?? null;
   }
 
+  async findByUserId(userId: string): Promise<SavedJobRecord[]> {
+    return [...this.records.values()].filter((record) => record.userId === userId);
+  }
+
   async save(record: SavedJobRecord): Promise<void> {
     this.records.set(this.key(record.userId, record.jobId), record);
   }

@@ -151,4 +151,62 @@ describe("PrismaJobRepository", () => {
     expect(found?.lastSeenAt).toEqual(new Date("2026-01-05T00:00:00Z"));
     expect(found?.isExpired).toBe(false);
   });
+
+  it("saves a job whose companyId has no pre-existing Company row (auto-creates a placeholder)", async () => {
+    // Mirrors real usage: job-provider mappers (Adzuna/Reed/Mock) set
+    // companyId to a normalized-name placeholder, not a resolved Company
+    // id — no CompanyRepository exists yet to create that row first. This
+    // must not fail with a foreign key constraint violation.
+    const job = Job.create({
+      id: randomUUID(),
+      companyId: `placeholder company ${randomUUID()}`,
+      provider: "MOCK",
+      externalId: randomUUID(),
+      title: "Sample Engineer",
+      description: "desc",
+      url: "https://example.com/mock-jobs/1",
+      location: Location.create({ country: "UK", isRemote: true }),
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+
+    await repository.save(job);
+    const found = await repository.findById(job.id);
+
+    expect(found).not.toBeNull();
+    expect(found?.companyId).toBe(job.companyId);
+  });
+
+  it("saveMany creates one placeholder Company per distinct companyId, without duplicate-key errors", async () => {
+    const sharedCompanyId = `shared company ${randomUUID()}`;
+    const jobA = Job.create({
+      id: randomUUID(),
+      companyId: sharedCompanyId,
+      provider: "MOCK",
+      externalId: randomUUID(),
+      title: "Role A",
+      description: "desc",
+      url: "https://example.com/mock-jobs/a",
+      location: Location.create({ country: "UK", isRemote: true }),
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    const jobB = Job.create({
+      id: randomUUID(),
+      companyId: sharedCompanyId,
+      provider: "MOCK",
+      externalId: randomUUID(),
+      title: "Role B",
+      description: "desc",
+      url: "https://example.com/mock-jobs/b",
+      location: Location.create({ country: "UK", isRemote: true }),
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+
+    await expect(repository.saveMany([jobA, jobB])).resolves.not.toThrow();
+
+    expect((await repository.findById(jobA.id))?.companyId).toBe(sharedCompanyId);
+    expect((await repository.findById(jobB.id))?.companyId).toBe(sharedCompanyId);
+  });
 });
