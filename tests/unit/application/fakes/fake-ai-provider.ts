@@ -1,6 +1,7 @@
 import {
   AiCoverLetterResponse,
   AiCvSuggestionsResponse,
+  AiMatchScoreRequest,
   AiMatchScoreResponse,
 } from "@/application/dto/ai-provider.dto";
 import { AiProvider } from "@/application/ports/ai-provider.port";
@@ -15,6 +16,9 @@ export class FakeAiProvider implements AiProvider {
     missingSkills: ["Kubernetes"],
     modelVersion: "fake-model-1",
   };
+  /** When set, overrides scoreMatchResponse entirely — lets a test throw or vary the result per request (e.g. per job.id). */
+  scoreMatchImpl?: (request: AiMatchScoreRequest) => Promise<AiMatchScoreResponse>;
+  scoreMatchCallCount = 0;
 
   coverLetterResponse: AiCoverLetterResponse = {
     content: "Dear Hiring Manager, ...",
@@ -29,7 +33,9 @@ export class FakeAiProvider implements AiProvider {
     modelVersion: "fake-model-1",
   };
 
-  async scoreMatch(): Promise<AiMatchScoreResponse> {
+  async scoreMatch(request: AiMatchScoreRequest): Promise<AiMatchScoreResponse> {
+    this.scoreMatchCallCount++;
+    if (this.scoreMatchImpl) return this.scoreMatchImpl(request);
     return this.scoreMatchResponse;
   }
 

@@ -70,3 +70,29 @@ export async function saveJob(
   const body = (await response.json()) as { savedJob: SavedJobRecordJson };
   return body.savedJob;
 }
+
+/**
+ * Client-side wrapper around DELETE /api/jobs/:id/save — "Dismiss" ("not
+ * interested, don't show again"). Implemented via the same route as
+ * unsaving (see that route's own comment): both end in the job's
+ * SavedJobRecord being marked DISMISSED.
+ */
+export async function dismissJob(
+  jobId: string,
+  userId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SavedJobRecordJson> {
+  const response = await fetchImpl(
+    `/api/jobs/${encodeURIComponent(jobId)}/save?userId=${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+
+  if (!response.ok) {
+    throw new SavedJobsRequestError(
+      await readErrorMessage(response, `Failed to dismiss job (status ${response.status})`),
+    );
+  }
+
+  const body = (await response.json()) as { savedJob: SavedJobRecordJson };
+  return body.savedJob;
+}

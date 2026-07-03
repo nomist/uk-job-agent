@@ -5,3 +5,4 @@ export * from "./resume-repository.port";
 export * from "./profile-repository.port";
 export * from "./job-provider.port";
 export * from "./ai-provider.port";
+export * from "./recommendation-run-repository.port";

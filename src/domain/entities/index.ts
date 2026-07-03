@@ -5,3 +5,4 @@ export * from "./resume";
 export * from "./job";
 export * from "./application";
 export * from "./match-score";
+export * from "./recommendation-run";

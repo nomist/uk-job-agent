@@ -4,6 +4,7 @@ import { FakeJobProvider } from "../../../../unit/application/fakes/fake-job-pro
 import { InMemoryApplicationRepository } from "../../../../unit/application/fakes/in-memory-application-repository";
 import { InMemoryJobRepository } from "../../../../unit/application/fakes/in-memory-job-repository";
 import { InMemoryProfileRepository } from "../../../../unit/application/fakes/in-memory-profile-repository";
+import { InMemoryRecommendationRunRepository } from "../../../../unit/application/fakes/in-memory-recommendation-run-repository";
 import { InMemoryResumeRepository } from "../../../../unit/application/fakes/in-memory-resume-repository";
 import { InMemorySavedJobRepository } from "../../../../unit/application/fakes/in-memory-saved-job-repository";
 
@@ -14,6 +15,7 @@ export interface TestContainerHandles {
   applicationRepository: InMemoryApplicationRepository;
   resumeRepository: InMemoryResumeRepository;
   profileRepository: InMemoryProfileRepository;
+  recommendationRunRepository: InMemoryRecommendationRunRepository;
   jobProviders: FakeJobProvider[];
   aiProvider: FakeAiProvider;
 }
@@ -32,6 +34,7 @@ export function buildTestContainer(
   const applicationRepository = new InMemoryApplicationRepository();
   const resumeRepository = new InMemoryResumeRepository();
   const profileRepository = new InMemoryProfileRepository();
+  const recommendationRunRepository = new InMemoryRecommendationRunRepository();
   const jobProviders = overrides.jobProviders ?? [
     new FakeJobProvider("ADZUNA", []),
     new FakeJobProvider("REED", []),
@@ -44,6 +47,7 @@ export function buildTestContainer(
     applicationRepository,
     resumeRepository,
     profileRepository,
+    recommendationRunRepository,
     jobProviders,
     aiProvider,
   });
@@ -55,6 +59,7 @@ export function buildTestContainer(
     applicationRepository,
     resumeRepository,
     profileRepository,
+    recommendationRunRepository,
     jobProviders,
     aiProvider,
   };
