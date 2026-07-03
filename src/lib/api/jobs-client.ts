@@ -92,3 +92,25 @@ export async function searchJobs(
 
   return (await response.json()) as JobSearchResponse;
 }
+
+/** Client-side wrapper around GET /api/jobs/:id — used by the Job Detail screen. */
+export async function getJob(
+  jobId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<JobSearchResult> {
+  const response = await fetchImpl(`/api/jobs/${encodeURIComponent(jobId)}`);
+
+  if (!response.ok) {
+    let message = `Failed to load job (status ${response.status})`;
+    try {
+      const body = (await response.json()) as { error?: { message?: string } };
+      if (body?.error?.message) message = body.error.message;
+    } catch {
+      // Response body wasn't JSON — fall back to the generic message above.
+    }
+    throw new JobSearchRequestError(message);
+  }
+
+  const body = (await response.json()) as { job: JobSearchResult };
+  return body.job;
+}
