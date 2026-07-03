@@ -27,6 +27,7 @@ interface ApplicationsBoardProps {
   errorMessage?: string;
   onRetry?: () => void;
   onStatusChange: (applicationId: string, status: ApplicationStatusValue) => void;
+  onDelete: (applicationId: string) => Promise<void>;
   updatingApplicationIds: ReadonlySet<string>;
   statusUpdateErrors: Readonly<Record<string, string>>;
 }
@@ -37,6 +38,7 @@ export function ApplicationsBoard({
   errorMessage,
   onRetry,
   onStatusChange,
+  onDelete,
   updatingApplicationIds,
   statusUpdateErrors,
 }: ApplicationsBoardProps) {
@@ -70,6 +72,7 @@ export function ApplicationsBoard({
                   <ApplicationCard
                     item={item}
                     onStatusChange={(newStatus) => onStatusChange(item.application.id, newStatus)}
+                    onDelete={onDelete}
                     isUpdating={updatingApplicationIds.has(item.application.id)}
                     errorMessage={statusUpdateErrors[item.application.id]}
                   />

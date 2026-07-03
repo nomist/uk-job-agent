@@ -16,3 +16,7 @@ export * from "./build-recommendation-search-filters";
 export * from "./rank-recommendation-candidates";
 export * from "./run-recommendations.use-case";
 export * from "./get-dashboard-recommendations.use-case";
+export * from "./delete-saved-job.use-case";
+export * from "./delete-application.use-case";
+export * from "./delete-resume.use-case";
+export * from "./update-resume.use-case";

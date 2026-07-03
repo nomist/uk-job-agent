@@ -5,4 +5,6 @@ export interface ApplicationRepository {
   findByUserAndJob(userId: string, jobId: string): Promise<Application | null>;
   findByUserId(userId: string): Promise<Application[]>;
   save(application: Application): Promise<void>;
+  /** Deletes only the Application (and its StatusChange history) — never the referenced Job or Resume. */
+  delete(id: string): Promise<void>;
 }

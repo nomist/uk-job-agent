@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { createApplication } from "@/lib/api/applications-client";
 import { CURRENT_USER_ID } from "@/lib/api/current-user";
-import { listSavedJobs, type SavedJobWithDetailsJson } from "@/lib/api/saved-jobs-client";
+import {
+  deleteSavedJob,
+  listSavedJobs,
+  type SavedJobWithDetailsJson,
+} from "@/lib/api/saved-jobs-client";
 import { SavedJobsList, type SavedJobsStatus } from "./saved-jobs-list";
 
 export function SavedJobsScreen() {
@@ -43,6 +47,12 @@ export function SavedJobsScreen() {
     await createApplication(jobId, CURRENT_USER_ID);
   }
 
+  async function handleDelete(savedJobId: string) {
+    await deleteSavedJob(savedJobId);
+    // Update the list immediately on success — no need to refetch.
+    setSavedJobs((current) => current.filter((item) => item.savedJob.id !== savedJobId));
+  }
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">
       <div>
@@ -58,6 +68,7 @@ export function SavedJobsScreen() {
         errorMessage={errorMessage}
         onRetry={handleRetry}
         onMarkApplied={handleMarkApplied}
+        onDelete={handleDelete}
       />
     </main>
   );

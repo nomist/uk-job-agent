@@ -46,6 +46,7 @@ const applicationsBody: ListApplicationsResponse = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("ApplicationsScreen", () => {
@@ -139,5 +140,45 @@ describe("ApplicationsScreen", () => {
     // Reverted back under "Applied", not left under "Saved".
     expect(screen.getByRole("heading", { level: 2, name: "Applied (1)" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 2, name: /^Saved/ })).not.toBeInTheDocument();
+  });
+
+  it("removes an application from the board immediately after a confirmed delete", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/applications/a1") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return jsonResponse(applicationsBody);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ApplicationsScreen />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(screen.getByText(/no applications yet/i)).toBeInTheDocument());
+    const deleteCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/applications/a1"),
+    );
+    expect(deleteCall?.[1]?.method).toBe("DELETE");
+  });
+
+  it("does not remove the application when the delete confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(applicationsBody),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ApplicationsScreen />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(screen.getByText("Staff Engineer")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "DELETE")).toBe(false);
   });
 });

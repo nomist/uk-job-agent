@@ -96,3 +96,23 @@ export async function dismissJob(
   const body = (await response.json()) as { savedJob: SavedJobRecordJson };
   return body.savedJob;
 }
+
+/**
+ * Client-side wrapper around DELETE /api/saved-jobs/:id — permanently
+ * removes the saved-job record (distinct from dismissJob(), which just
+ * flips status to DISMISSED).
+ */
+export async function deleteSavedJob(
+  savedJobId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetchImpl(`/api/saved-jobs/${encodeURIComponent(savedJobId)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new SavedJobsRequestError(
+      await readErrorMessage(response, `Failed to delete saved job (status ${response.status})`),
+    );
+  }
+}

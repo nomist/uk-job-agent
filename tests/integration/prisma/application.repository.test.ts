@@ -224,4 +224,53 @@ describe("PrismaApplicationRepository", () => {
     const userRow = await prisma.user.findUnique({ where: { id: userId } });
     expect(userRow).not.toBeNull();
   });
+
+  it("delete() removes the application and its status history, without touching the Job or Resume rows", async () => {
+    const { user, job, resume } = await seedJobAndResume(prisma);
+    let application = Application.create({
+      id: randomUUID(),
+      userId: user.id,
+      jobId: job.id,
+      resumeId: resume.id,
+      appliedAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    application = application.transitionTo("HR_SCREEN", new Date("2026-01-05T00:00:00Z"));
+    await repository.save(application);
+
+    await repository.delete(application.id);
+
+    expect(await repository.findById(application.id)).toBeNull();
+    const remainingStatusChanges = await prisma.statusChange.findMany({
+      where: { applicationId: application.id },
+    });
+    expect(remainingStatusChanges).toEqual([]);
+    const jobRow = await prisma.job.findUnique({ where: { id: job.id } });
+    expect(jobRow).not.toBeNull();
+    const resumeRow = await prisma.resume.findUnique({ where: { id: resume.id } });
+    expect(resumeRow).not.toBeNull();
+  });
+
+  it("delete() does not affect other applications", async () => {
+    const { user, job, resume } = await seedJobAndResume(prisma);
+    const toDelete = Application.create({
+      id: randomUUID(),
+      userId: user.id,
+      jobId: job.id,
+      resumeId: resume.id,
+      appliedAt: new Date(),
+    });
+    const toKeep = Application.create({
+      id: randomUUID(),
+      userId: user.id,
+      jobId: job.id,
+      resumeId: resume.id,
+      appliedAt: new Date(),
+    });
+    await repository.save(toDelete);
+    await repository.save(toKeep);
+
+    await repository.delete(toDelete.id);
+
+    expect(await repository.findById(toKeep.id)).not.toBeNull();
+  });
 });

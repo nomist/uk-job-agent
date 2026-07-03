@@ -47,3 +47,28 @@ export class DuplicateActiveApplicationError extends ApplicationLayerError {
     super(`User "${userId}" already has an active application for job "${jobId}"`);
   }
 }
+
+export class SavedJobNotFoundError extends ApplicationLayerError {
+  readonly code = "SAVED_JOB_NOT_FOUND";
+
+  constructor(savedJobId: string) {
+    super(`Saved job "${savedJobId}" was not found`);
+  }
+}
+
+export class CannotDeleteOnlyResumeError extends ApplicationLayerError {
+  readonly code = "CANNOT_DELETE_ONLY_RESUME";
+
+  constructor(resumeId: string) {
+    super(`Resume "${resumeId}" cannot be deleted because it is the only resume on this profile`);
+  }
+}
+
+/** Thrown when deletion is blocked by other data referencing this resume (e.g. a recommendation run scored against it). */
+export class ResumeInUseError extends ApplicationLayerError {
+  readonly code = "RESUME_IN_USE";
+
+  constructor(resumeId: string) {
+    super(`Resume "${resumeId}" cannot be deleted because it has related records`);
+  }
+}

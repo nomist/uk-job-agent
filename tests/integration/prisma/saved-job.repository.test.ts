@@ -125,4 +125,44 @@ describe("PrismaSavedJobRepository", () => {
     const userRow = await prisma.user.findUnique({ where: { id: userId } });
     expect(userRow).not.toBeNull();
   });
+
+  it("finds a record by its own id", async () => {
+    const user = await createTestUser(prisma);
+    const company = await createTestCompany(prisma);
+    const job = await createTestJobRow(prisma, company.id);
+    const id = randomUUID();
+    await repository.save({
+      id,
+      userId: user.id,
+      jobId: job.id,
+      status: "SAVED",
+      savedAt: new Date(),
+    });
+
+    const found = await repository.findById(id);
+    expect(found?.id).toBe(id);
+    expect(found?.jobId).toBe(job.id);
+  });
+
+  it("returns null from findById for an unknown id", async () => {
+    expect(await repository.findById("missing")).toBeNull();
+  });
+
+  it("delete() removes the record", async () => {
+    const user = await createTestUser(prisma);
+    const company = await createTestCompany(prisma);
+    const job = await createTestJobRow(prisma, company.id);
+    const id = randomUUID();
+    await repository.save({
+      id,
+      userId: user.id,
+      jobId: job.id,
+      status: "SAVED",
+      savedAt: new Date(),
+    });
+
+    await repository.delete(id);
+
+    expect(await repository.findById(id)).toBeNull();
+  });
 });

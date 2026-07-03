@@ -21,6 +21,7 @@ const existingResume: ResumeJson = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("ResumeManagerScreen", () => {
@@ -124,5 +125,74 @@ describe("ResumeManagerScreen", () => {
     await user.click(screen.getByRole("button", { name: /retry/i }));
 
     await waitFor(() => expect(screen.getByText(/no resumes yet/i)).toBeInTheDocument());
+  });
+
+  it("edits a resume's label/content and shows the update immediately", async () => {
+    const user = userEvent.setup();
+    const updatedResume: ResumeJson = { ...existingResume, label: "Updated label" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/resumes/r1" && init?.method === "PATCH") {
+        return jsonResponse({ resume: updatedResume });
+      }
+      return jsonResponse({ resumes: [existingResume] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ResumeManagerScreen />);
+    await waitFor(() => expect(screen.getByText("General")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const labelInput = screen.getByDisplayValue("General");
+    await user.clear(labelInput);
+    await user.type(labelInput, "Updated label");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(screen.getByText("Updated label")).toBeInTheDocument());
+    const patchCall = fetchMock.mock.calls.find(
+      (call) => String(call[0]) === "/api/resumes/r1" && call[1]?.method === "PATCH",
+    );
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({
+      label: "Updated label",
+      content: "Existing resume content.",
+      parsedSkills: [],
+    });
+  });
+
+  it("removes a resume from the list after a confirmed delete", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let deleted = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/resumes/r1" && init?.method === "DELETE") {
+        deleted = true;
+        return new Response(null, { status: 204 });
+      }
+      return jsonResponse({ resumes: deleted ? [] : [existingResume] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ResumeManagerScreen />);
+    await waitFor(() => expect(screen.getByText("General")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(screen.getByText(/no resumes yet/i)).toBeInTheDocument());
+  });
+
+  it("does not delete the resume when the confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({ resumes: [existingResume] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ResumeManagerScreen />);
+    await waitFor(() => expect(screen.getByText("General")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(screen.getByText("General")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "DELETE")).toBe(false);
   });
 });

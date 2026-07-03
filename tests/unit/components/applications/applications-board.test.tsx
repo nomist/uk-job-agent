@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApplicationsBoard } from "@/components/applications/applications-board";
 import type { ApplicationWithDetailsJson } from "@/lib/api/applications-client";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function buildItem(
   id: string,
@@ -49,6 +53,7 @@ describe("ApplicationsBoard", () => {
         status="loading"
         applications={[]}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         updatingApplicationIds={new Set()}
         statusUpdateErrors={{}}
       />,
@@ -66,6 +71,7 @@ describe("ApplicationsBoard", () => {
         errorMessage="Boom"
         onRetry={onRetry}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         updatingApplicationIds={new Set()}
         statusUpdateErrors={{}}
       />,
@@ -82,6 +88,7 @@ describe("ApplicationsBoard", () => {
         status="success"
         applications={[]}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         updatingApplicationIds={new Set()}
         statusUpdateErrors={{}}
       />,
@@ -99,6 +106,7 @@ describe("ApplicationsBoard", () => {
         status="success"
         applications={applications}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         updatingApplicationIds={new Set()}
         statusUpdateErrors={{}}
       />,
@@ -117,6 +125,7 @@ describe("ApplicationsBoard", () => {
         status="success"
         applications={applications}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         updatingApplicationIds={new Set(["a1"])}
         statusUpdateErrors={{ a1: "Invalid transition" }}
       />,
@@ -124,5 +133,30 @@ describe("ApplicationsBoard", () => {
 
     expect(screen.getByRole("combobox")).toBeDisabled();
     expect(screen.getByText("Invalid transition")).toBeInTheDocument();
+  });
+
+  it("calls onDelete with the correct application id when a card's Delete is confirmed", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const applications = [
+      buildItem("a1", "First Role", "APPLIED"),
+      buildItem("a2", "Second Role", "APPLIED"),
+    ];
+    render(
+      <ApplicationsBoard
+        status="success"
+        applications={applications}
+        onStatusChange={vi.fn()}
+        onDelete={onDelete}
+        updatingApplicationIds={new Set()}
+        statusUpdateErrors={{}}
+      />,
+    );
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    await user.click(deleteButtons[1]);
+
+    expect(onDelete).toHaveBeenCalledWith("a2");
   });
 });

@@ -1,7 +1,11 @@
 import { Resume } from "@/domain/entities/resume";
+import { ResumeInUseError } from "@/application/errors/application-errors";
 import { ResumeRepository } from "@/application/ports/resume-repository.port";
-import { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { toDomainResume, toResumeRow } from "./mappers/resume.mapper";
+
+/** SQLite's FK violation code, surfaced by Prisma as P2003 ("Foreign key constraint failed"). */
+const FOREIGN_KEY_CONSTRAINT_CODE = "P2003";
 
 export class PrismaResumeRepository implements ResumeRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -30,5 +34,25 @@ export class PrismaResumeRepository implements ResumeRepository {
       create: { id: resume.id, ...toResumeRow(resume) },
       update: toResumeRow(resume),
     });
+  }
+
+  /**
+   * MatchScore/RecommendationRun both reference Resume with ON DELETE
+   * RESTRICT, so deleting a resume with related history hits a real FK
+   * violation — translated here into a clear, actionable domain error
+   * instead of a raw database error leaking out of this layer.
+   */
+  async delete(id: string): Promise<void> {
+    try {
+      await this.prisma.resume.delete({ where: { id } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === FOREIGN_KEY_CONSTRAINT_CODE
+      ) {
+        throw new ResumeInUseError(id);
+      }
+      throw error;
+    }
   }
 }
