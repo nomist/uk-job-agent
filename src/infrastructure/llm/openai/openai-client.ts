@@ -7,7 +7,6 @@ import {
 } from "./openai-types";
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_TEMPERATURE = 0.3;
 
 /**
  * Sends one chat-completion request (JSON mode) and returns the assistant's
@@ -28,11 +27,17 @@ export async function createChatCompletion(
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
       },
+      // No `temperature` field: several newer models (e.g. reasoning
+      // models, and per this fix's bug report, some GPT-5-family models)
+      // reject any explicit temperature other than the API default (1)
+      // with a 400. Omitting the field entirely — rather than hardcoding
+      // 1 — lets every model use its own real default, including ones
+      // that don't support the parameter at all. OPENAI_MODEL stays the
+      // only per-deployment knob (see openai-config.ts).
       body: JSON.stringify({
         model: config.model,
         messages,
         response_format: { type: "json_object" },
-        temperature: DEFAULT_TEMPERATURE,
       }),
     });
   } catch (error) {
