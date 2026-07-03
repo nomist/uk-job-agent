@@ -3,15 +3,18 @@ import { ApplicationRepository } from "@/application/ports/application-repositor
 import { JobProvider } from "@/application/ports/job-provider.port";
 import { JobRepository } from "@/application/ports/job-repository.port";
 import { ProfileRepository } from "@/application/ports/profile-repository.port";
+import { RecommendationRunRepository } from "@/application/ports/recommendation-run-repository.port";
 import { ResumeRepository } from "@/application/ports/resume-repository.port";
 import { SavedJobRepository } from "@/application/ports/saved-job-repository.port";
 import { CreateApplicationUseCase } from "@/application/use-cases/create-application.use-case";
 import { DismissJobUseCase } from "@/application/use-cases/dismiss-job.use-case";
 import { CreateResumeUseCase } from "@/application/use-cases/create-resume.use-case";
 import { GenerateCoverLetterUseCase } from "@/application/use-cases/generate-cover-letter.use-case";
+import { GetDashboardRecommendationsUseCase } from "@/application/use-cases/get-dashboard-recommendations.use-case";
 import { ListApplicationsUseCase } from "@/application/use-cases/list-applications.use-case";
 import { ListResumesUseCase } from "@/application/use-cases/list-resumes.use-case";
 import { ListSavedJobsUseCase } from "@/application/use-cases/list-saved-jobs.use-case";
+import { RunRecommendationsUseCase } from "@/application/use-cases/run-recommendations.use-case";
 import { SaveJobUseCase } from "@/application/use-cases/save-job.use-case";
 import { ScoreJobMatchUseCase } from "@/application/use-cases/score-job-match.use-case";
 import { SearchJobsUseCase } from "@/application/use-cases/search-jobs.use-case";
@@ -30,6 +33,7 @@ import { prisma as sharedPrisma } from "@/infrastructure/persistence/prisma/clie
 import { PrismaApplicationRepository } from "@/infrastructure/persistence/prisma/application.repository";
 import { PrismaJobRepository } from "@/infrastructure/persistence/prisma/job.repository";
 import { PrismaProfileRepository } from "@/infrastructure/persistence/prisma/profile.repository";
+import { PrismaRecommendationRunRepository } from "@/infrastructure/persistence/prisma/recommendation-run.repository";
 import { PrismaResumeRepository } from "@/infrastructure/persistence/prisma/resume.repository";
 import { PrismaSavedJobRepository } from "@/infrastructure/persistence/prisma/saved-job.repository";
 
@@ -40,6 +44,7 @@ export interface ContainerDependencies {
   applicationRepository: ApplicationRepository;
   resumeRepository: ResumeRepository;
   profileRepository: ProfileRepository;
+  recommendationRunRepository: RecommendationRunRepository;
   jobProviders: readonly JobProvider[];
   aiProvider: AiProvider;
 }
@@ -67,6 +72,8 @@ export interface Container {
   scoreJobMatch(): ScoreJobMatchUseCase;
   generateCoverLetter(): GenerateCoverLetterUseCase;
   suggestCvImprovements(): SuggestCVImprovementsUseCase;
+  getDashboardRecommendations(): GetDashboardRecommendationsUseCase;
+  runRecommendations(): RunRecommendationsUseCase;
 }
 
 /**
@@ -150,6 +157,9 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
   const getProfileRepository = overrides.profileRepository
     ? () => overrides.profileRepository!
     : lazy(() => new PrismaProfileRepository(prismaClient));
+  const getRecommendationRunRepository = overrides.recommendationRunRepository
+    ? () => overrides.recommendationRunRepository!
+    : lazy(() => new PrismaRecommendationRunRepository(prismaClient));
   // Adding a new job provider is one more entry in
   // resolveDefaultJobProviders() — SearchJobsUseCase already accepts any
   // number of JobProvider implementations.
@@ -180,6 +190,9 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
     },
     get profileRepository() {
       return getProfileRepository();
+    },
+    get recommendationRunRepository() {
+      return getRecommendationRunRepository();
     },
     get jobProviders() {
       return getJobProviders();
@@ -238,6 +251,28 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
         dependencies.resumeRepository,
         dependencies.jobRepository,
         dependencies.aiProvider,
+      ),
+    getDashboardRecommendations: () =>
+      new GetDashboardRecommendationsUseCase(
+        dependencies.profileRepository,
+        dependencies.resumeRepository,
+        dependencies.recommendationRunRepository,
+        dependencies.jobRepository,
+      ),
+    runRecommendations: () =>
+      new RunRecommendationsUseCase(
+        dependencies.profileRepository,
+        dependencies.resumeRepository,
+        new SearchJobsUseCase(dependencies.jobProviders, dependencies.jobRepository),
+        dependencies.savedJobRepository,
+        dependencies.applicationRepository,
+        new ScoreJobMatchUseCase(
+          dependencies.jobRepository,
+          dependencies.profileRepository,
+          dependencies.resumeRepository,
+          dependencies.aiProvider,
+        ),
+        dependencies.recommendationRunRepository,
       ),
   };
 }

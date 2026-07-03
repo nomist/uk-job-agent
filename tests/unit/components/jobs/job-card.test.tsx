@@ -172,4 +172,48 @@ describe("JobCard", () => {
     await user.click(screen.getByRole("button", { name: "Mark as applied" }));
     expect(onMarkApplied).toHaveBeenCalled();
   });
+
+  it("does not render match-score info when matchScore is not given", () => {
+    render(<JobCard job={buildJob()} />);
+    expect(screen.queryByText(/\/100/)).not.toBeInTheDocument();
+  });
+
+  it("renders the score, reason, and missing skills when matchScore is given", () => {
+    render(
+      <JobCard
+        job={buildJob()}
+        matchScore={{ score: 82, reason: "Strong skill overlap.", missingSkills: ["Kubernetes"] }}
+      />,
+    );
+
+    expect(screen.getByText("82/100")).toBeInTheDocument();
+    expect(screen.getByText("Strong skill overlap.")).toBeInTheDocument();
+    expect(screen.getByText("Missing skills: Kubernetes")).toBeInTheDocument();
+  });
+
+  it("omits the missing-skills line when there are none", () => {
+    render(
+      <JobCard
+        job={buildJob()}
+        matchScore={{ score: 90, reason: "Great fit.", missingSkills: [] }}
+      />,
+    );
+    expect(screen.queryByText(/Missing skills/)).not.toBeInTheDocument();
+  });
+
+  it("does not render a Dismiss control when onDismiss is not given", () => {
+    render(<JobCard job={buildJob()} />);
+    expect(screen.queryByRole("button", { name: /dismiss/i })).not.toBeInTheDocument();
+  });
+
+  it("calls onDismiss with the job id and shows a dismissed confirmation on success", async () => {
+    const user = userEvent.setup();
+    const onDismiss = vi.fn().mockResolvedValue(undefined);
+    render(<JobCard job={buildJob({ id: "job-42" })} onDismiss={onDismiss} />);
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(onDismiss).toHaveBeenCalledWith("job-42");
+    await waitFor(() => expect(screen.getByText("Dismissed ✓")).toBeInTheDocument());
+  });
 });

@@ -58,3 +58,11 @@ export class InvalidApplicationError extends DomainError {
 export class InvalidMatchScoreError extends DomainError {
   readonly code = "INVALID_MATCH_SCORE";
 }
+
+export class InvalidRecommendationRunError extends DomainError {
+  readonly code = "INVALID_RECOMMENDATION_RUN";
+}
+
+export class InvalidRecommendationItemError extends DomainError {
+  readonly code = "INVALID_RECOMMENDATION_ITEM";
+}

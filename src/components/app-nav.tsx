@@ -11,6 +11,12 @@ export function AppNav() {
           Search
         </Link>
         <Link
+          href="/dashboard"
+          className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
+        >
+          Dashboard
+        </Link>
+        <Link
           href="/saved"
           className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
         >

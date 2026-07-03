@@ -3,6 +3,7 @@ import { Application } from "@/domain/entities/application";
 import { Job } from "@/domain/entities/job";
 import { MatchScore } from "@/domain/entities/match-score";
 import { Profile } from "@/domain/entities/profile";
+import { RecommendationRun } from "@/domain/entities/recommendation-run";
 import { Resume } from "@/domain/entities/resume";
 
 // Plain-JSON projections of domain entities / DTOs — Dates become ISO
@@ -115,5 +116,41 @@ export function toMatchScoreJson(matchScore: MatchScore) {
     modelVersion: matchScore.modelVersion,
     isLatest: matchScore.isLatest,
     generatedAt: matchScore.generatedAt.toISOString(),
+  };
+}
+
+/**
+ * Every item includes its full hydrated Job (title/company/location/salary/
+ * etc.) so the Dashboard can render a complete card from this one response,
+ * with no follow-up per-job fetch. An item whose Job couldn't be hydrated
+ * (jobsById has no entry — see GetDashboardRecommendationsUseCase) is
+ * dropped rather than sent with a null job, so every item the UI receives
+ * is always fully renderable.
+ */
+export function toRecommendationRunJson(run: RecommendationRun, jobsById: Map<string, Job>) {
+  return {
+    id: run.id,
+    profileId: run.profileId,
+    resumeId: run.resumeId,
+    createdAt: run.createdAt.toISOString(),
+    searchFilters: run.searchFilters,
+    rawResultCount: run.rawResultCount,
+    candidateCount: run.candidateCount,
+    selectedForScoringCount: run.selectedForScoringCount,
+    scoredCount: run.scoredCount,
+    failedCount: run.failedCount,
+    items: run.items.flatMap((item) => {
+      const job = jobsById.get(item.jobId);
+      if (!job) return [];
+      return [
+        {
+          jobId: item.jobId,
+          score: item.score,
+          reason: item.reason,
+          missingSkills: item.missingSkills,
+          job: toJobJson(job),
+        },
+      ];
+    }),
   };
 }

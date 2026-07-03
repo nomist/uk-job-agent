@@ -12,3 +12,7 @@ export * from "./set-primary-resume.use-case";
 export * from "./score-job-match.use-case";
 export * from "./generate-cover-letter.use-case";
 export * from "./suggest-cv-improvements.use-case";
+export * from "./build-recommendation-search-filters";
+export * from "./rank-recommendation-candidates";
+export * from "./run-recommendations.use-case";
+export * from "./get-dashboard-recommendations.use-case";

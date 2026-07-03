@@ -10,6 +10,12 @@ import {
   ProviderBadge,
 } from "@/components/shared/job-display";
 
+export interface JobCardMatchInfo {
+  score: number;
+  reason: string;
+  missingSkills: string[];
+}
+
 interface JobCardProps {
   job: JobSearchResult;
   /** Provided on the Job Search screen to make the Save button functional; omitted elsewhere. */
@@ -22,9 +28,20 @@ interface JobCardProps {
   savedAt?: string;
   /** Provided on both Job Search and Saved Jobs — creates an Application ("Mark as applied"). */
   onMarkApplied?: (jobId: string) => Promise<void>;
+  /** Provided on the Dashboard — marks the job DISMISSED so future recommendation runs exclude it. */
+  onDismiss?: (jobId: string) => Promise<void>;
+  /** Provided on the Dashboard — an AI match score/reason/missing-skills snapshot for this job. */
+  matchScore?: JobCardMatchInfo;
 }
 
-export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
+export function JobCard({
+  job,
+  onSave,
+  savedAt,
+  onMarkApplied,
+  onDismiss,
+  matchScore,
+}: JobCardProps) {
   const salary = formatSalary(job.salaryRange);
   const posted = formatDate(job.postedAt);
   const savedOn = formatDate(savedAt ?? null);
@@ -39,7 +56,14 @@ export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
               mapper decisions). Shown as-is until that lands. */}
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{job.companyId}</p>
         </div>
-        <ProviderBadge provider={job.provider} />
+        <div className="flex items-center gap-2">
+          {matchScore ? (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              {matchScore.score}/100
+            </span>
+          ) : null}
+          <ProviderBadge provider={job.provider} />
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -48,6 +72,17 @@ export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
         {posted ? <span>Posted {posted}</span> : null}
         {savedOn ? <span>Saved {savedOn}</span> : null}
       </div>
+
+      {matchScore ? (
+        <div className="flex flex-col gap-1 rounded-md bg-zinc-50 p-2 text-sm dark:bg-zinc-900">
+          <p className="line-clamp-2 text-zinc-700 dark:text-zinc-300">{matchScore.reason}</p>
+          {matchScore.missingSkills.length > 0 ? (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Missing skills: {matchScore.missingSkills.join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <a
@@ -77,6 +112,14 @@ export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
             Save
           </span>
         )}
+        {onDismiss ? (
+          <ActionButton
+            onClick={() => onDismiss(job.id)}
+            idleLabel="Dismiss"
+            pendingLabel="Dismissing…"
+            doneLabel="Dismissed ✓"
+          />
+        ) : null}
         {onMarkApplied ? (
           <ActionButton
             onClick={() => onMarkApplied(job.id)}

@@ -96,8 +96,9 @@ model Profile {
 
   updatedAt DateTime @updatedAt
 
-  resumes     Resume[]
-  matchScores MatchScore[]
+  resumes            Resume[]
+  matchScores        MatchScore[]
+  recommendationRuns RecommendationRun[]
 
   @@index([userId])
 }
@@ -116,8 +117,9 @@ model Resume {
 
   createdAt DateTime @default(now())
 
-  applications Application[]
-  matchScores  MatchScore[]
+  applications       Application[]
+  matchScores        MatchScore[]
+  recommendationRuns RecommendationRun[]
 
   // Enforcing "exactly one primary per profile" is a cross-entity invariant
   // (spans multiple Resume rows) — left to the application/repository layer
@@ -169,12 +171,13 @@ model Job {
 
   // Self-relation for cross-provider dedup grouping (Job.assignToCanonical).
   canonicalJobId String?
-  canonicalJob   Job?  @relation("JobDuplicates", fields: [canonicalJobId], references: [id])
-  duplicates     Job[] @relation("JobDuplicates")
+  canonicalJob   Job?    @relation("JobDuplicates", fields: [canonicalJobId], references: [id])
+  duplicates     Job[]   @relation("JobDuplicates")
 
-  savedJobs    SavedJob[]
-  applications Application[]
-  matchScores  MatchScore[]
+  savedJobs           SavedJob[]
+  applications        Application[]
+  matchScores         MatchScore[]
+  recommendationItems RecommendationItem[]
 
   @@unique([provider, externalId])
   @@index([companyId])
@@ -264,4 +267,56 @@ model MatchScore {
   generatedAt  DateTime @default(now())
 
   @@index([jobId, resumeId, isLatest])
+}
+
+// One manual "Refresh recommendations" execution (Milestone 8.2) and its
+// ranked results snapshot. Write-once: a refresh always creates a brand new
+// row rather than updating a previous run.
+model RecommendationRun {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id])
+  resumeId  String
+  resume    Resume  @relation(fields: [resumeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // RecommendationSearchFilters on the domain entity — JSON-encoded, same
+  // reasoning as Profile.skills (SQLite has no native array/object type).
+  searchFilters String
+
+  rawResultCount          Int
+  candidateCount          Int
+  selectedForScoringCount Int
+  scoredCount             Int
+  failedCount             Int
+
+  items RecommendationItem[]
+
+  @@index([profileId, createdAt])
+}
+
+// One scored, ranked job within a RecommendationRun.
+model RecommendationItem {
+  id    String            @id @default(cuid())
+  runId String
+  run   RecommendationRun @relation(fields: [runId], references: [id])
+  jobId String
+  job   Job               @relation(fields: [jobId], references: [id])
+
+  // Denormalized from the parent run so findRecentScores() (the "don't
+  // rescore a job scored recently" cost control) can query directly by
+  // (profileId, resumeId, jobId, scoredAt) without a join through Run.
+  profileId String
+  resumeId  String
+  scoredAt  DateTime @default(now())
+
+  score  Int
+  reason String
+
+  // string[] on the domain entity — JSON-encoded, see Profile.skills.
+  missingSkills String @default("[]")
+
+  @@index([runId])
+  @@index([profileId, resumeId, jobId, scoredAt])
 }
