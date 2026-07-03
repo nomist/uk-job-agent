@@ -12,6 +12,8 @@ export interface AiMatchScoreResponse {
   score: number;
   confidence: number;
   rationale: string;
+  strengths: string[];
+  weaknesses: string[];
   missingSkills: string[];
   modelVersion: string;
 }
@@ -32,8 +34,19 @@ export interface AiCoverLetterResponse {
 
 export type CvSuggestionPriority = "LOW" | "MEDIUM" | "HIGH";
 
+// A fixed set (not a free-form string) so the UI can reliably group
+// suggestions into labeled sections without depending on the AI's exact
+// wording — see CvSuggestionsCard.
+export const CV_SUGGESTION_CATEGORIES = [
+  "MISSING_SKILLS",
+  "WORDING",
+  "STRUCTURE",
+  "OTHER",
+] as const;
+export type CvSuggestionCategory = (typeof CV_SUGGESTION_CATEGORIES)[number];
+
 export interface AiCvSuggestion {
-  category: string;
+  category: CvSuggestionCategory;
   text: string;
   priority: CvSuggestionPriority;
 }

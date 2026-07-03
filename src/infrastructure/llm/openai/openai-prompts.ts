@@ -49,7 +49,8 @@ export function buildMatchScorePrompt(request: AiMatchScoreRequest): OpenAiChatM
       role: "system",
       content:
         "You are a career-matching assistant for the UK job market. Assess how well a candidate fits a job posting. " +
-        'Respond ONLY with a JSON object of the exact shape: {"score": integer 0-100, "confidence": number 0-1, "rationale": string, "missingSkills": string[]}. No prose outside the JSON.',
+        'Respond ONLY with a JSON object of the exact shape: {"score": integer 0-100, "confidence": number 0-1, "rationale": string, "strengths": string[], "weaknesses": string[], "missingSkills": string[]}. ' +
+        '"strengths" and "weaknesses" should each be a short list of concrete points about the candidate\'s fit for this specific job. No prose outside the JSON.',
     },
     {
       role: "user",
@@ -85,7 +86,8 @@ export function buildCvSuggestionsPrompt(request: AiCvSuggestionsRequest): OpenA
       role: "system",
       content:
         "You are a CV/resume improvement assistant for the UK job market. Suggest concrete improvements. " +
-        'Respond ONLY with a JSON object of the exact shape: {"suggestions": [{"category": string, "text": string, "priority": "LOW"|"MEDIUM"|"HIGH"}]}. No prose outside the JSON.',
+        'Respond ONLY with a JSON object of the exact shape: {"suggestions": [{"category": "MISSING_SKILLS"|"WORDING"|"STRUCTURE"|"OTHER", "text": string, "priority": "LOW"|"MEDIUM"|"HIGH"}]}. ' +
+        'Use "MISSING_SKILLS" for skills/experience the resume lacks for the target job, "WORDING" for phrasing/impact improvements, "STRUCTURE" for layout/organization issues, and "OTHER" for anything else. No prose outside the JSON.',
     },
     {
       role: "user",

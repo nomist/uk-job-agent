@@ -11,8 +11,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const suggestions: CvSuggestionsJson = {
   suggestions: [
-    { category: "wording", text: "Quantify your impact.", priority: "MEDIUM" },
-    { category: "skills", text: "Add Kubernetes experience.", priority: "HIGH" },
+    { category: "WORDING", text: "Quantify your impact.", priority: "MEDIUM" },
+    { category: "MISSING_SKILLS", text: "Add Kubernetes experience.", priority: "HIGH" },
+    { category: "STRUCTURE", text: "Move education below experience.", priority: "LOW" },
   ],
   modelVersion: "gpt-test",
   generatedAt: "2026-01-01T00:00:00.000Z",
@@ -33,7 +34,7 @@ describe("CvSuggestionsCard", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("shows a loading state, disables the button, then renders suggestions", async () => {
+  it("shows a loading state, disables the button, then renders suggestions grouped by category", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(suggestions));
     vi.stubGlobal("fetch", fetchMock);
@@ -44,13 +45,36 @@ describe("CvSuggestionsCard", () => {
     await user.click(button);
 
     await waitFor(() => expect(screen.getByText(/Quantify your impact/)).toBeInTheDocument());
+    expect(screen.getByText("Wording improvements")).toBeInTheDocument();
+    expect(screen.getByText("Missing skills")).toBeInTheDocument();
+    expect(screen.getByText("Structure")).toBeInTheDocument();
     expect(screen.getByText(/Add Kubernetes experience/)).toBeInTheDocument();
+    expect(screen.getByText(/Move education below experience/)).toBeInTheDocument();
     expect(screen.getByText("MEDIUM")).toBeInTheDocument();
     expect(screen.getByText("HIGH")).toBeInTheDocument();
+    expect(screen.getByText("LOW")).toBeInTheDocument();
     expect(button).not.toBeDisabled();
 
     const requestedUrl = fetchMock.mock.calls[0][0] as string;
     expect(requestedUrl).toBe("/api/jobs/j1/cv-suggestions");
+  });
+
+  it("does not render a group heading for a category with no suggestions", async () => {
+    const user = userEvent.setup();
+    const wordingOnly: CvSuggestionsJson = {
+      ...suggestions,
+      suggestions: [{ category: "WORDING", text: "Quantify your impact.", priority: "MEDIUM" }],
+    };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(wordingOnly));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CvSuggestionsCard jobId="j1" />);
+    await user.click(screen.getByRole("button", { name: "Improve CV" }));
+
+    await waitFor(() => expect(screen.getByText("Wording improvements")).toBeInTheDocument());
+    expect(screen.queryByText("Missing skills")).not.toBeInTheDocument();
+    expect(screen.queryByText("Structure")).not.toBeInTheDocument();
+    expect(screen.queryByText("Other")).not.toBeInTheDocument();
   });
 
   it("shows a friendly error with a Retry button on failure", async () => {

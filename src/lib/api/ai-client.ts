@@ -14,6 +14,8 @@ export interface MatchScoreJson {
   score: number;
   confidence: { value: number; band: ConfidenceBand };
   rationale: string;
+  strengths: string[];
+  weaknesses: string[];
   missingSkills: string[];
   modelVersion: string;
   isLatest: boolean;
@@ -28,8 +30,19 @@ export interface CoverLetterJson {
 
 export type CvSuggestionPriority = "LOW" | "MEDIUM" | "HIGH";
 
+// Mirrors CV_SUGGESTION_CATEGORIES in
+// src/application/dto/ai-provider.dto.ts — kept as a UI-local copy (like
+// APPLICATION_STATUSES) rather than importing the domain module directly.
+export const CV_SUGGESTION_CATEGORIES = [
+  "MISSING_SKILLS",
+  "WORDING",
+  "STRUCTURE",
+  "OTHER",
+] as const;
+export type CvSuggestionCategory = (typeof CV_SUGGESTION_CATEGORIES)[number];
+
 export interface CvSuggestionJson {
-  category: string;
+  category: CvSuggestionCategory;
   text: string;
   priority: CvSuggestionPriority;
 }

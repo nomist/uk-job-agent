@@ -3,6 +3,7 @@ import {
   AiCoverLetterResponse,
   AiCvSuggestionsResponse,
   AiMatchScoreResponse,
+  CV_SUGGESTION_CATEGORIES,
 } from "@/application/dto/ai-provider.dto";
 import { OpenAiResponseParseError } from "./openai-errors";
 
@@ -18,6 +19,8 @@ const matchScoreSchema = z.object({
   score: z.number().int().min(0).max(100),
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(1),
+  strengths: z.array(z.string()).default([]),
+  weaknesses: z.array(z.string()).default([]),
   missingSkills: z.array(z.string()).default([]),
 });
 
@@ -49,7 +52,7 @@ const cvSuggestionsSchema = z.object({
   suggestions: z
     .array(
       z.object({
-        category: z.string().min(1),
+        category: z.enum(CV_SUGGESTION_CATEGORIES),
         text: z.string().min(1),
         priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
       }),

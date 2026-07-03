@@ -62,6 +62,11 @@ describe("ScoreJobMatchUseCase", () => {
 
     expect(matchScore.score).toBe(80);
     expect(matchScore.confidence.band).toBe("HIGH");
+    expect(matchScore.strengths).toEqual([
+      "Strong TypeScript background",
+      "Relevant domain experience",
+    ]);
+    expect(matchScore.weaknesses).toEqual(["Limited leadership experience"]);
     expect(matchScore.missingSkills).toEqual(["Kubernetes"]);
     expect(matchScore.isLatest).toBe(true);
   });
