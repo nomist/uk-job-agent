@@ -22,4 +22,8 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
   async save(application: Application): Promise<void> {
     this.applications.set(application.id, application);
   }
+
+  async delete(id: string): Promise<void> {
+    this.applications.delete(id);
+  }
 }

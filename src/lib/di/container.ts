@@ -7,6 +7,9 @@ import { RecommendationRunRepository } from "@/application/ports/recommendation-
 import { ResumeRepository } from "@/application/ports/resume-repository.port";
 import { SavedJobRepository } from "@/application/ports/saved-job-repository.port";
 import { CreateApplicationUseCase } from "@/application/use-cases/create-application.use-case";
+import { DeleteApplicationUseCase } from "@/application/use-cases/delete-application.use-case";
+import { DeleteResumeUseCase } from "@/application/use-cases/delete-resume.use-case";
+import { DeleteSavedJobUseCase } from "@/application/use-cases/delete-saved-job.use-case";
 import { DismissJobUseCase } from "@/application/use-cases/dismiss-job.use-case";
 import { CreateResumeUseCase } from "@/application/use-cases/create-resume.use-case";
 import { GenerateCoverLetterUseCase } from "@/application/use-cases/generate-cover-letter.use-case";
@@ -21,6 +24,7 @@ import { SearchJobsUseCase } from "@/application/use-cases/search-jobs.use-case"
 import { SetPrimaryResumeUseCase } from "@/application/use-cases/set-primary-resume.use-case";
 import { SuggestCVImprovementsUseCase } from "@/application/use-cases/suggest-cv-improvements.use-case";
 import { UpdateApplicationStatusUseCase } from "@/application/use-cases/update-application-status.use-case";
+import { UpdateResumeUseCase } from "@/application/use-cases/update-resume.use-case";
 import { UpsertProfileUseCase } from "@/application/use-cases/upsert-profile.use-case";
 import { PrismaClient } from "@/generated/prisma/client";
 import { hasAdzunaCredentials } from "@/infrastructure/job-providers/adzuna/adzuna-config";
@@ -61,13 +65,17 @@ export interface Container {
   searchJobs(providerNames?: readonly string[]): SearchJobsUseCase;
   saveJob(): SaveJobUseCase;
   dismissJob(): DismissJobUseCase;
+  deleteSavedJob(): DeleteSavedJobUseCase;
   listSavedJobs(): ListSavedJobsUseCase;
   createApplication(): CreateApplicationUseCase;
   updateApplicationStatus(): UpdateApplicationStatusUseCase;
+  deleteApplication(): DeleteApplicationUseCase;
   listApplications(): ListApplicationsUseCase;
   upsertProfile(): UpsertProfileUseCase;
   listResumes(): ListResumesUseCase;
   createResume(): CreateResumeUseCase;
+  updateResume(): UpdateResumeUseCase;
+  deleteResume(): DeleteResumeUseCase;
   setPrimaryResume(): SetPrimaryResumeUseCase;
   scoreJobMatch(): ScoreJobMatchUseCase;
   generateCoverLetter(): GenerateCoverLetterUseCase;
@@ -214,6 +222,7 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
     saveJob: () => new SaveJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
     dismissJob: () =>
       new DismissJobUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
+    deleteSavedJob: () => new DeleteSavedJobUseCase(dependencies.savedJobRepository),
     listSavedJobs: () =>
       new ListSavedJobsUseCase(dependencies.savedJobRepository, dependencies.jobRepository),
     createApplication: () =>
@@ -224,6 +233,7 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
       ),
     updateApplicationStatus: () =>
       new UpdateApplicationStatusUseCase(dependencies.applicationRepository),
+    deleteApplication: () => new DeleteApplicationUseCase(dependencies.applicationRepository),
     listApplications: () =>
       new ListApplicationsUseCase(dependencies.applicationRepository, dependencies.jobRepository),
     upsertProfile: () => new UpsertProfileUseCase(dependencies.profileRepository),
@@ -231,6 +241,8 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
       new ListResumesUseCase(dependencies.profileRepository, dependencies.resumeRepository),
     createResume: () =>
       new CreateResumeUseCase(dependencies.profileRepository, dependencies.resumeRepository),
+    updateResume: () => new UpdateResumeUseCase(dependencies.resumeRepository),
+    deleteResume: () => new DeleteResumeUseCase(dependencies.resumeRepository),
     setPrimaryResume: () => new SetPrimaryResumeUseCase(dependencies.resumeRepository),
     scoreJobMatch: () =>
       new ScoreJobMatchUseCase(

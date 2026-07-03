@@ -1,9 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { Resume } from "@/domain/entities/resume";
+import { RecommendationItem, RecommendationRun } from "@/domain/entities/recommendation-run";
+import { ResumeInUseError } from "@/application/errors/application-errors";
 import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaRecommendationRunRepository } from "@/infrastructure/persistence/prisma/recommendation-run.repository";
 import { PrismaResumeRepository } from "@/infrastructure/persistence/prisma/resume.repository";
-import { createTestProfileRow, createTestUser } from "../support/fixtures";
+import {
+  createTestCompany,
+  createTestJobRow,
+  createTestProfileRow,
+  createTestUser,
+} from "../support/fixtures";
 import { createTestPrismaClient } from "../support/test-prisma-client";
 
 async function seedProfile(prisma: PrismaClient) {
@@ -121,5 +129,61 @@ describe("PrismaResumeRepository", () => {
     );
 
     expect(await repository.findByProfileId(profileA.id)).toEqual([]);
+  });
+
+  it("delete() removes the resume", async () => {
+    const profile = await seedProfile(prisma);
+    const resume = Resume.create({
+      id: randomUUID(),
+      profileId: profile.id,
+      label: "To delete",
+      content: "content",
+      createdAt: new Date(),
+    });
+    await repository.save(resume);
+
+    await repository.delete(resume.id);
+
+    expect(await repository.findById(resume.id)).toBeNull();
+  });
+
+  it("delete() throws ResumeInUseError instead of a raw DB error when a RecommendationRun references it", async () => {
+    const profile = await seedProfile(prisma);
+    const resume = Resume.create({
+      id: randomUUID(),
+      profileId: profile.id,
+      label: "Scored resume",
+      content: "content",
+      createdAt: new Date(),
+    });
+    await repository.save(resume);
+
+    const company = await createTestCompany(prisma);
+    const job = await createTestJobRow(prisma, company.id);
+    const recommendationRunRepository = new PrismaRecommendationRunRepository(prisma);
+    await recommendationRunRepository.save(
+      RecommendationRun.create({
+        id: randomUUID(),
+        profileId: profile.id,
+        resumeId: resume.id,
+        createdAt: new Date(),
+        searchFilters: {
+          skills: [],
+          locations: [],
+          workModes: [],
+          visaStatus: "UNKNOWN",
+          maxJobsToScore: 20,
+        },
+        rawResultCount: 1,
+        candidateCount: 1,
+        selectedForScoringCount: 1,
+        scoredCount: 1,
+        failedCount: 0,
+        items: [RecommendationItem.create({ jobId: job.id, score: 80, reason: "Good fit" })],
+      }),
+    );
+
+    await expect(repository.delete(resume.id)).rejects.toThrow(ResumeInUseError);
+    expect(await repository.findById(resume.id)).not.toBeNull();
   });
 });

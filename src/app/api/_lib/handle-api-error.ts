@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import {
   ApplicationLayerError,
   ApplicationNotFoundError,
+  CannotDeleteOnlyResumeError,
   DuplicateActiveApplicationError,
   JobNotFoundError,
   ProfileNotFoundError,
+  ResumeInUseError,
   ResumeNotFoundError,
+  SavedJobNotFoundError,
 } from "@/application/errors/application-errors";
 import {
   DomainError,
@@ -58,7 +61,8 @@ export function handleApiError(error: unknown): NextResponse {
     error instanceof JobNotFoundError ||
     error instanceof ProfileNotFoundError ||
     error instanceof ResumeNotFoundError ||
-    error instanceof ApplicationNotFoundError
+    error instanceof ApplicationNotFoundError ||
+    error instanceof SavedJobNotFoundError
   ) {
     return NextResponse.json(
       { error: { message: error.message, code: error.code } },
@@ -66,7 +70,11 @@ export function handleApiError(error: unknown): NextResponse {
     );
   }
 
-  if (error instanceof DuplicateActiveApplicationError) {
+  if (
+    error instanceof DuplicateActiveApplicationError ||
+    error instanceof CannotDeleteOnlyResumeError ||
+    error instanceof ResumeInUseError
+  ) {
     return NextResponse.json(
       { error: { message: error.message, code: error.code } },
       { status: 409 },

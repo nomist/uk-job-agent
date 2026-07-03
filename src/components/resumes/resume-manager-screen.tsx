@@ -6,9 +6,12 @@ import { ErrorState } from "@/components/jobs/error-state";
 import { LoadingState } from "@/components/jobs/loading-state";
 import {
   createResume,
+  deleteResume,
   listResumes,
   setPrimaryResume,
+  updateResume,
   type ResumeJson,
+  type UpdateResumeInput,
 } from "@/lib/api/resumes-client";
 import { ResumeCard } from "./resume-card";
 import { ResumeUploadForm } from "./resume-upload-form";
@@ -61,6 +64,19 @@ export function ResumeManagerScreen() {
     );
   }
 
+  async function handleUpdate(resumeId: string, input: UpdateResumeInput) {
+    const updated = await updateResume(resumeId, input);
+    setResumes((current) => current.map((resume) => (resume.id === updated.id ? updated : resume)));
+  }
+
+  async function handleDelete(resumeId: string) {
+    await deleteResume(resumeId);
+    // The backend may have reassigned primary to another resume as a side
+    // effect — a fresh list load reflects that correctly, rather than
+    // guessing which resume became primary on the client.
+    await fetchResumes();
+  }
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">
       <div>
@@ -86,7 +102,12 @@ export function ResumeManagerScreen() {
         <ul className="flex flex-col gap-3">
           {resumes.map((resume) => (
             <li key={resume.id}>
-              <ResumeCard resume={resume} onSetPrimary={handleSetPrimary} />
+              <ResumeCard
+                resume={resume}
+                onSetPrimary={handleSetPrimary}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+              />
             </li>
           ))}
         </ul>

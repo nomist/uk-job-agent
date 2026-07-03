@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createContainer } from "@/lib/di/container";
 import { CreateApplicationUseCase } from "@/application/use-cases/create-application.use-case";
+import { DeleteApplicationUseCase } from "@/application/use-cases/delete-application.use-case";
+import { DeleteResumeUseCase } from "@/application/use-cases/delete-resume.use-case";
+import { DeleteSavedJobUseCase } from "@/application/use-cases/delete-saved-job.use-case";
 import { DismissJobUseCase } from "@/application/use-cases/dismiss-job.use-case";
 import { GenerateCoverLetterUseCase } from "@/application/use-cases/generate-cover-letter.use-case";
 import { SaveJobUseCase } from "@/application/use-cases/save-job.use-case";
@@ -8,6 +11,7 @@ import { ScoreJobMatchUseCase } from "@/application/use-cases/score-job-match.us
 import { SearchJobsUseCase } from "@/application/use-cases/search-jobs.use-case";
 import { SuggestCVImprovementsUseCase } from "@/application/use-cases/suggest-cv-improvements.use-case";
 import { UpdateApplicationStatusUseCase } from "@/application/use-cases/update-application-status.use-case";
+import { UpdateResumeUseCase } from "@/application/use-cases/update-resume.use-case";
 import { FakeAiProvider } from "../../application/fakes/fake-ai-provider";
 import { FakeJobProvider } from "../../application/fakes/fake-job-provider";
 import { InMemoryApplicationRepository } from "../../application/fakes/in-memory-application-repository";
@@ -42,8 +46,12 @@ describe("createContainer", () => {
     expect(container.searchJobs()).toBeInstanceOf(SearchJobsUseCase);
     expect(container.saveJob()).toBeInstanceOf(SaveJobUseCase);
     expect(container.dismissJob()).toBeInstanceOf(DismissJobUseCase);
+    expect(container.deleteSavedJob()).toBeInstanceOf(DeleteSavedJobUseCase);
     expect(container.createApplication()).toBeInstanceOf(CreateApplicationUseCase);
     expect(container.updateApplicationStatus()).toBeInstanceOf(UpdateApplicationStatusUseCase);
+    expect(container.deleteApplication()).toBeInstanceOf(DeleteApplicationUseCase);
+    expect(container.updateResume()).toBeInstanceOf(UpdateResumeUseCase);
+    expect(container.deleteResume()).toBeInstanceOf(DeleteResumeUseCase);
     expect(container.scoreJobMatch()).toBeInstanceOf(ScoreJobMatchUseCase);
     expect(container.generateCoverLetter()).toBeInstanceOf(GenerateCoverLetterUseCase);
     expect(container.suggestCvImprovements()).toBeInstanceOf(SuggestCVImprovementsUseCase);

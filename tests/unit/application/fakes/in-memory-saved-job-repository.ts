@@ -8,6 +8,10 @@ export class InMemorySavedJobRepository implements SavedJobRepository {
     return `${userId}:${jobId}`;
   }
 
+  async findById(id: string): Promise<SavedJobRecord | null> {
+    return [...this.records.values()].find((record) => record.id === id) ?? null;
+  }
+
   async findByUserAndJob(userId: string, jobId: string): Promise<SavedJobRecord | null> {
     return this.records.get(this.key(userId, jobId)) ?? null;
   }
@@ -18,6 +22,11 @@ export class InMemorySavedJobRepository implements SavedJobRepository {
 
   async save(record: SavedJobRecord): Promise<void> {
     this.records.set(this.key(record.userId, record.jobId), record);
+  }
+
+  async delete(id: string): Promise<void> {
+    const record = await this.findById(id);
+    if (record) this.records.delete(this.key(record.userId, record.jobId));
   }
 
   all(): SavedJobRecord[] {

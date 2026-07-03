@@ -6,6 +6,11 @@ import { toDomainSavedJobRecord } from "./mappers/saved-job.mapper";
 export class PrismaSavedJobRepository implements SavedJobRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async findById(id: string): Promise<SavedJobRecord | null> {
+    const row = await this.prisma.savedJob.findUnique({ where: { id } });
+    return row ? toDomainSavedJobRecord(row) : null;
+  }
+
   async findByUserAndJob(userId: string, jobId: string): Promise<SavedJobRecord | null> {
     const row = await this.prisma.savedJob.findUnique({
       where: { userId_jobId: { userId, jobId } },
@@ -36,6 +41,10 @@ export class PrismaSavedJobRepository implements SavedJobRepository {
         notes: record.notes ?? null,
       },
     });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.savedJob.delete({ where: { id } });
   }
 
   /**

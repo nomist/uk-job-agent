@@ -68,6 +68,21 @@ export class PrismaApplicationRepository implements ApplicationRepository {
   }
 
   /**
+   * StatusChange.applicationId has ON DELETE RESTRICT (see the Milestone 4
+   * migration), and every Application always has at least one StatusChange
+   * (seeded by Application.create()) — so its history must be cleared
+   * first, in the same transaction, or the Application delete would always
+   * fail. Only these two tables are touched: the referenced Job and Resume
+   * rows are never deleted.
+   */
+  async delete(id: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.statusChange.deleteMany({ where: { applicationId: id } }),
+      this.prisma.application.delete({ where: { id } }),
+    ]);
+  }
+
+  /**
    * Application.userId is a real foreign key to User.id, but there's no
    * authentication yet — same gap as SavedJob.userId (see
    * PrismaSavedJobRepository), fixed the same way: upsert a minimal

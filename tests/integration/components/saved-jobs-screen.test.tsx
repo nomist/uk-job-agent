@@ -44,6 +44,7 @@ const savedJobsBody: ListSavedJobsResponse = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("SavedJobsScreen", () => {
@@ -127,5 +128,45 @@ describe("SavedJobsScreen", () => {
       jobId: "j1",
       userId: "local-dev-user",
     });
+  });
+
+  it("removes a saved job from the list immediately after a confirmed delete", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/saved-jobs/sj1") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return jsonResponse(savedJobsBody);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SavedJobsScreen />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /remove from saved/i }));
+
+    await waitFor(() => expect(screen.getByText(/no saved jobs yet/i)).toBeInTheDocument());
+    const deleteCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/saved-jobs/sj1"),
+    );
+    expect(deleteCall?.[1]?.method).toBe("DELETE");
+  });
+
+  it("does not remove the item when the delete confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(savedJobsBody),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SavedJobsScreen />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /remove from saved/i }));
+
+    expect(screen.getByText("Staff Engineer")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "DELETE")).toBe(false);
   });
 });

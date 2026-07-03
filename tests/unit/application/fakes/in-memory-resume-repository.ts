@@ -23,6 +23,10 @@ export class InMemoryResumeRepository implements ResumeRepository {
     this.resumes.set(resume.id, resume);
   }
 
+  async delete(id: string): Promise<void> {
+    this.resumes.delete(id);
+  }
+
   seed(resume: Resume): void {
     this.resumes.set(resume.id, resume);
   }

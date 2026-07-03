@@ -1,4 +1,5 @@
 import { formatDate, formatLocation, ProviderBadge } from "@/components/shared/job-display";
+import { DeleteButton } from "@/components/shared/delete-button";
 import {
   APPLICATION_STATUSES,
   type ApplicationStatusValue,
@@ -19,6 +20,7 @@ const STATUS_LABELS: Record<ApplicationStatusValue, string> = {
 interface ApplicationCardProps {
   item: ApplicationWithDetailsJson;
   onStatusChange: (status: ApplicationStatusValue) => void;
+  onDelete: (applicationId: string) => Promise<void>;
   isUpdating?: boolean;
   errorMessage?: string;
 }
@@ -26,6 +28,7 @@ interface ApplicationCardProps {
 export function ApplicationCard({
   item,
   onStatusChange,
+  onDelete,
   isUpdating,
   errorMessage,
 }: ApplicationCardProps) {
@@ -47,7 +50,7 @@ export function ApplicationCard({
         {appliedOn ? <span>Applied {appliedOn}</span> : null}
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor={`status-${application.id}`}>
           Status for {job.title}
         </label>
@@ -67,6 +70,11 @@ export function ApplicationCard({
         {errorMessage ? (
           <span className="text-xs text-red-600 dark:text-red-400">{errorMessage}</span>
         ) : null}
+        <span className="flex-1" />
+        <DeleteButton
+          onDelete={() => onDelete(application.id)}
+          confirmMessage={`Delete your application for "${job.title}"? This can't be undone.`}
+        />
       </div>
     </article>
   );

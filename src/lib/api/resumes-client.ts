@@ -79,3 +79,47 @@ export async function setPrimaryResume(
   const body = (await response.json()) as { resume: ResumeJson };
   return body.resume;
 }
+
+export interface UpdateResumeInput {
+  label?: string;
+  content?: string;
+  parsedSkills?: string[];
+}
+
+/** Client-side wrapper around PATCH /api/resumes/:id — in-place content edit (label/content/parsedSkills only; primary stays setPrimaryResume's job). */
+export async function updateResume(
+  resumeId: string,
+  input: UpdateResumeInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ResumeJson> {
+  const response = await fetchImpl(`/api/resumes/${encodeURIComponent(resumeId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new ResumesRequestError(
+      await readErrorMessage(response, `Failed to update resume (status ${response.status})`),
+    );
+  }
+
+  const body = (await response.json()) as { resume: ResumeJson };
+  return body.resume;
+}
+
+/** Client-side wrapper around DELETE /api/resumes/:id. */
+export async function deleteResume(
+  resumeId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetchImpl(`/api/resumes/${encodeURIComponent(resumeId)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new ResumesRequestError(
+      await readErrorMessage(response, `Failed to delete resume (status ${response.status})`),
+    );
+  }
+}

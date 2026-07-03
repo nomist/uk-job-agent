@@ -101,6 +101,22 @@ export async function createApplication(
   return body.application;
 }
 
+/** Client-side wrapper around DELETE /api/applications/:id — removes only the Application, never its Job or Resume. */
+export async function deleteApplication(
+  applicationId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetchImpl(`/api/applications/${encodeURIComponent(applicationId)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new ApplicationsRequestError(
+      await readErrorMessage(response, `Failed to delete application (status ${response.status})`),
+    );
+  }
+}
+
 /** Client-side wrapper around PATCH /api/applications/:id/status. */
 export async function updateApplicationStatus(
   applicationId: string,

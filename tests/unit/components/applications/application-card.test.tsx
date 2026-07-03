@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApplicationCard } from "@/components/applications/application-card";
 import type { ApplicationWithDetailsJson } from "@/lib/api/applications-client";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function buildItem(
   overrides: Partial<ApplicationWithDetailsJson["application"]> = {},
@@ -43,7 +47,7 @@ function buildItem(
 
 describe("ApplicationCard", () => {
   it("renders job title, company, location, and applied date", () => {
-    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} />);
+    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} onDelete={vi.fn()} />);
 
     expect(screen.getByText("Staff Engineer")).toBeInTheDocument();
     expect(screen.getByText("acme")).toBeInTheDocument();
@@ -52,19 +56,27 @@ describe("ApplicationCard", () => {
   });
 
   it("shows the provider badge", () => {
-    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} />);
+    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.getByText("Adzuna")).toBeInTheDocument();
   });
 
   it("shows the current status as the selected option", () => {
-    render(<ApplicationCard item={buildItem({ status: "HR_SCREEN" })} onStatusChange={vi.fn()} />);
+    render(
+      <ApplicationCard
+        item={buildItem({ status: "HR_SCREEN" })}
+        onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
     expect(screen.getByRole("combobox")).toHaveValue("HR_SCREEN");
   });
 
   it("calls onStatusChange with the newly selected status", async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn();
-    render(<ApplicationCard item={buildItem()} onStatusChange={onStatusChange} />);
+    render(
+      <ApplicationCard item={buildItem()} onStatusChange={onStatusChange} onDelete={vi.fn()} />,
+    );
 
     await user.selectOptions(screen.getByRole("combobox"), "REJECTED");
 
@@ -72,7 +84,9 @@ describe("ApplicationCard", () => {
   });
 
   it("disables the status select while updating", () => {
-    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} isUpdating />);
+    render(
+      <ApplicationCard item={buildItem()} onStatusChange={vi.fn()} onDelete={vi.fn()} isUpdating />,
+    );
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
 
@@ -81,9 +95,51 @@ describe("ApplicationCard", () => {
       <ApplicationCard
         item={buildItem()}
         onStatusChange={vi.fn()}
+        onDelete={vi.fn()}
         errorMessage="Invalid transition"
       />,
     );
     expect(screen.getByText("Invalid transition")).toBeInTheDocument();
+  });
+
+  it("calls onDelete with the application id after confirmation", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ApplicationCard
+        item={buildItem({ id: "app-42" })}
+        onStatusChange={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(onDelete).toHaveBeenCalledWith("app-42");
+  });
+
+  it("does not call onDelete when the confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} onDelete={onDelete} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when onDelete fails", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onDelete = vi.fn().mockRejectedValue(new Error("Failed to delete application"));
+    render(<ApplicationCard item={buildItem()} onStatusChange={vi.fn()} onDelete={onDelete} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Failed to delete application")).toBeInTheDocument(),
+    );
   });
 });

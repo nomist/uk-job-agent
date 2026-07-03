@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  deleteApplication,
   listApplications,
   updateApplicationStatus,
   type ApplicationStatusValue,
@@ -87,6 +88,12 @@ export function ApplicationsScreen() {
     }
   }
 
+  async function handleDelete(applicationId: string) {
+    await deleteApplication(applicationId);
+    // Update the board immediately on success — no need to refetch.
+    setApplications((current) => current.filter((item) => item.application.id !== applicationId));
+  }
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">
       <div>
@@ -104,6 +111,7 @@ export function ApplicationsScreen() {
         onStatusChange={(applicationId, newStatus) =>
           void handleStatusChange(applicationId, newStatus)
         }
+        onDelete={handleDelete}
         updatingApplicationIds={updatingApplicationIds}
         statusUpdateErrors={statusUpdateErrors}
       />
