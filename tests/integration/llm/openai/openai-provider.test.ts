@@ -91,6 +91,9 @@ describe("OpenAiProvider", () => {
       expect(requestBody.model).toBe("gpt-4o-mini");
       expect(requestBody.response_format).toEqual({ type: "json_object" });
       expect(requestBody.messages).toHaveLength(2);
+      // Some models (e.g. newer GPT-5-family models) reject any explicit
+      // temperature other than their default — see openai-client.ts.
+      expect(requestBody).not.toHaveProperty("temperature");
     });
   });
 
