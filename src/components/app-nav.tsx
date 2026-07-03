@@ -22,6 +22,18 @@ export function AppNav() {
         >
           Applications
         </Link>
+        <Link
+          href="/profile"
+          className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
+        >
+          Profile
+        </Link>
+        <Link
+          href="/resumes"
+          className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50"
+        >
+          Resumes
+        </Link>
       </div>
     </nav>
   );

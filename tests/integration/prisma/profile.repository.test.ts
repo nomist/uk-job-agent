@@ -22,6 +22,7 @@ describe("PrismaProfileRepository", () => {
       headline: "Staff Engineer",
       yearsOfExperience: 10,
       skills: ["TypeScript", "React"],
+      preferredLocations: ["London", "Remote"],
       workPreferences: ["REMOTE", "HYBRID"],
       visaStatus: "NO_SPONSORSHIP_NEEDED",
       salaryExpectation: SalaryRange.create({ min: 90000, max: 120000, currency: "GBP" }),
@@ -32,6 +33,7 @@ describe("PrismaProfileRepository", () => {
     const found = await repository.findById(profile.id);
 
     expect(found?.skills).toEqual(["TypeScript", "React"]);
+    expect(found?.preferredLocations).toEqual(["London", "Remote"]);
     expect(found?.workPreferences).toEqual(["REMOTE", "HYBRID"]);
     expect(found?.salaryExpectation?.min).toBe(90000);
     expect(found?.salaryExpectation?.max).toBe(120000);
@@ -47,6 +49,7 @@ describe("PrismaProfileRepository", () => {
     const found = await repository.findById(profile.id);
 
     expect(found?.skills).toEqual([]);
+    expect(found?.preferredLocations).toEqual([]);
     expect(found?.workPreferences).toEqual([]);
     expect(found?.salaryExpectation).toBeUndefined();
     expect(found?.visaStatus).toBe("UNKNOWN");
@@ -82,5 +85,21 @@ describe("PrismaProfileRepository", () => {
 
     const found = await repository.findById(profile.id);
     expect(found?.headline).toBe("Updated headline");
+  });
+
+  it("saves a profile whose userId has no pre-existing User row (auto-creates a placeholder)", async () => {
+    // Mirrors PrismaSavedJobRepository/PrismaApplicationRepository's fix:
+    // no auth exists yet, so callers pass an opaque userId that may not
+    // correspond to any existing User row. Must not fail with a foreign
+    // key violation. Deliberately does NOT call createTestUser() first.
+    const userId = `placeholder-user-${randomUUID()}`;
+    const profile = Profile.create({ id: randomUUID(), userId, updatedAt: new Date() });
+
+    await repository.save(profile);
+    const found = await repository.findByUserId(userId);
+
+    expect(found?.id).toBe(profile.id);
+    const userRow = await prisma.user.findUnique({ where: { id: userId } });
+    expect(userRow).not.toBeNull();
   });
 });

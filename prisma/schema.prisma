@@ -83,6 +83,9 @@ model Profile {
   // type, so this is stored as a JSON-encoded string list.
   skills String @default("[]")
 
+  // string[] on the domain entity — same JSON-array caveat as `skills`.
+  preferredLocations String @default("[]")
+
   salaryExpectationMin      Int?
   salaryExpectationMax      Int?
   salaryExpectationCurrency String?

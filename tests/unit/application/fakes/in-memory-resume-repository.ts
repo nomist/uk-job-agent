@@ -15,6 +15,10 @@ export class InMemoryResumeRepository implements ResumeRepository {
     return null;
   }
 
+  async findByProfileId(profileId: string): Promise<Resume[]> {
+    return [...this.resumes.values()].filter((resume) => resume.profileId === profileId);
+  }
+
   async save(resume: Resume): Promise<void> {
     this.resumes.set(resume.id, resume);
   }
