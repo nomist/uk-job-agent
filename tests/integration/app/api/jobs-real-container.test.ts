@@ -46,7 +46,7 @@ describe("GET /api/jobs with the real container", () => {
 });
 
 describe("POST /api/jobs/:id/score with the real container", () => {
-  it("still fails with a 500 when OPENAI_API_KEY is missing (AI routes require it)", async () => {
+  it("fails with a clear, actionable 503 when OPENAI_API_KEY is missing (AI routes require it)", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("ADZUNA_APP_ID", "");
     vi.stubEnv("ADZUNA_APP_KEY", "");
@@ -66,8 +66,10 @@ describe("POST /api/jobs/:id/score with the real container", () => {
     // builds ScoreJobMatchUseCase with aiProvider as a constructor argument,
     // so the missing-credentials failure happens at container-access time,
     // before the job lookup even runs.
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     const body = await response.json();
-    expect(body.error.message).toBe("Internal server error");
+    expect(body.error.message).toBe(
+      "AI features are not configured. Set OPENAI_API_KEY to enable Match Score, Cover Letter, and CV Suggestions.",
+    );
   });
 });

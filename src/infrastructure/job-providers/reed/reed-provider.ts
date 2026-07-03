@@ -1,7 +1,7 @@
 import { JobProviderListing, JobProviderSearchParams } from "@/application/dto/job-provider.dto";
 import { JobProvider } from "@/application/ports/job-provider.port";
 import { loadReedConfig, ReedConfig } from "./reed-config";
-import { ReedRequestError } from "./reed-errors";
+import { ReedRateLimitError, ReedRequestError } from "./reed-errors";
 import { mapReedResultToListing } from "./reed-mapper";
 import { ReedSearchResponse } from "./reed-types";
 
@@ -27,6 +27,13 @@ export class ReedJobProvider implements JobProvider {
       });
     } catch (error) {
       throw new ReedRequestError(`Failed to reach Reed: ${(error as Error).message}`, error);
+    }
+
+    if (response.status === 429) {
+      throw new ReedRateLimitError(
+        "Reed is rate-limiting requests right now",
+        parseRetryAfter(response),
+      );
     }
 
     if (!response.ok) {
@@ -81,4 +88,11 @@ export class ReedJobProvider implements JobProvider {
 
     return url.toString();
   }
+}
+
+function parseRetryAfter(response: Response): number | undefined {
+  const header = response.headers.get("retry-after");
+  if (!header) return undefined;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) ? seconds : undefined;
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { ReedConfig } from "@/infrastructure/job-providers/reed/reed-config";
-import { ReedRequestError } from "@/infrastructure/job-providers/reed/reed-errors";
+import {
+  ReedRateLimitError,
+  ReedRequestError,
+} from "@/infrastructure/job-providers/reed/reed-errors";
 import { ReedJobProvider } from "@/infrastructure/job-providers/reed/reed-provider";
 import { ReedSearchResponse } from "@/infrastructure/job-providers/reed/reed-types";
 
@@ -193,5 +196,34 @@ describe("ReedJobProvider", () => {
     const provider = new ReedJobProvider(config, fetchImpl);
 
     await expect(provider.search({})).rejects.toThrow(ReedRequestError);
+  });
+
+  it("throws ReedRateLimitError with retryAfterSeconds on a 429 response", async () => {
+    const fetchImpl = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ error: "rate limited" }), {
+          status: 429,
+          headers: { "Retry-After": "45" },
+        }),
+    );
+    const provider = new ReedJobProvider(config, fetchImpl);
+
+    const error = await provider.search({}).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ReedRateLimitError);
+    expect((error as ReedRateLimitError).retryAfterSeconds).toBe(45);
+  });
+
+  it("leaves retryAfterSeconds undefined when Reed doesn't send a Retry-After header", async () => {
+    const fetchImpl = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ error: "rate limited" }), { status: 429 }),
+    );
+    const provider = new ReedJobProvider(config, fetchImpl);
+
+    const error = await provider.search({}).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ReedRateLimitError);
+    expect((error as ReedRateLimitError).retryAfterSeconds).toBeUndefined();
   });
 });

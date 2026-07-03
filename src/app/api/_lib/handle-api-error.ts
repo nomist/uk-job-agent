@@ -18,13 +18,23 @@ import { ApiValidationError } from "./errors";
 // so it must not import provider-specific code ("no provider imports
 // outside DI"). Name-based matching gets the same status-code behavior
 // without that import.
-const RATE_LIMIT_ERROR_NAMES = new Set(["OpenAiRateLimitError"]);
-const UPSTREAM_ERROR_NAMES = new Set([
-  "AdzunaRequestError",
-  "ReedRequestError",
-  "OpenAiRequestError",
-  "OpenAiResponseParseError",
+const RATE_LIMIT_ERROR_NAMES = new Set([
+  "AdzunaRateLimitError",
+  "ReedRateLimitError",
+  "OpenAiRateLimitError",
 ]);
+
+// Friendly, user-facing label per upstream error name — used for both the
+// 502 "temporarily unavailable" branch below and nowhere else, so a
+// provider outage never leaks raw HTTP/JSON details (status codes,
+// vendor-specific error text) into the response body. The full error is
+// still logged server-side via console.error for diagnosis.
+const UPSTREAM_ERROR_LABELS: Record<string, string> = {
+  AdzunaRequestError: "Adzuna",
+  ReedRequestError: "Reed",
+  OpenAiRequestError: "the AI service",
+  OpenAiResponseParseError: "the AI service",
+};
 
 /** Central error -> HTTP response mapping for every route handler. */
 export function handleApiError(error: unknown): NextResponse {
@@ -80,17 +90,34 @@ export function handleApiError(error: unknown): NextResponse {
     );
   }
 
+  // Missing/invalid OPENAI_API_KEY: a clear, actionable message rather
+  // than a generic 500 — see openai-config.ts. 503 ("Service Unavailable")
+  // fits better than 500 here: nothing is broken, a feature just isn't
+  // configured yet.
+  if (error instanceof Error && error.name === "OpenAiNotConfiguredError") {
+    return NextResponse.json({ error: { message: error.message } }, { status: 503 });
+  }
+
   if (error instanceof Error && RATE_LIMIT_ERROR_NAMES.has(error.name)) {
     const retryAfterSeconds = (error as Error & { retryAfterSeconds?: number }).retryAfterSeconds;
+    const retryHint =
+      typeof retryAfterSeconds === "number"
+        ? ` Please try again in about ${retryAfterSeconds} seconds.`
+        : " Please try again in a moment.";
     const init: ResponseInit = { status: 429 };
     if (typeof retryAfterSeconds === "number") {
       init.headers = { "Retry-After": String(retryAfterSeconds) };
     }
-    return NextResponse.json({ error: { message: error.message } }, init);
+    return NextResponse.json({ error: { message: `${error.message}.${retryHint}` } }, init);
   }
 
-  if (error instanceof Error && UPSTREAM_ERROR_NAMES.has(error.name)) {
-    return NextResponse.json({ error: { message: error.message } }, { status: 502 });
+  if (error instanceof Error && error.name in UPSTREAM_ERROR_LABELS) {
+    console.error(`Upstream provider error (${error.name}):`, error.message, error.cause ?? "");
+    const label = UPSTREAM_ERROR_LABELS[error.name];
+    return NextResponse.json(
+      { error: { message: `${label} is temporarily unavailable. Please try again shortly.` } },
+      { status: 502 },
+    );
   }
 
   console.error("Unhandled API error:", error);

@@ -8,6 +8,8 @@ import { saveJob } from "@/lib/api/saved-jobs-client";
 import { JobFilters, type JobFiltersValues } from "./job-filters";
 import { JobResultsList, type JobResultsStatus } from "./job-results-list";
 import { MockDataNotice } from "./mock-data-notice";
+import { NoProvidersConfiguredNotice } from "./no-providers-configured-notice";
+import { ProvidersDegradedNotice } from "./providers-degraded-notice";
 import { SearchForm, type SearchFormValues } from "./search-form";
 
 const INITIAL_FILTERS: JobFiltersValues = { salaryMin: "", remoteOnly: false, provider: "" };
@@ -20,6 +22,8 @@ export function JobSearchScreen() {
   const [jobs, setJobs] = useState<JobSearchResult[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [isMock, setIsMock] = useState(false);
+  const [configuredProviders, setConfiguredProviders] = useState<string[]>([]);
+  const [failedProviders, setFailedProviders] = useState<string[]>([]);
 
   async function runSearch(next: SearchFormValues) {
     setLastSearch(next);
@@ -38,6 +42,8 @@ export function JobSearchScreen() {
       });
       setJobs(result.jobs);
       setIsMock(result.isMock);
+      setConfiguredProviders(result.configuredProviders);
+      setFailedProviders(result.failedProviders);
       setStatus("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
@@ -72,6 +78,10 @@ export function JobSearchScreen() {
       </div>
 
       {status === "success" && isMock ? <MockDataNotice /> : null}
+      {status === "success" && !isMock && configuredProviders.length === 0 ? (
+        <NoProvidersConfiguredNotice />
+      ) : null}
+      {status === "success" ? <ProvidersDegradedNotice failedProviders={failedProviders} /> : null}
 
       <JobResultsList
         status={status}

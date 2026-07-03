@@ -5,9 +5,11 @@ export class FakeJobProvider implements JobProvider {
   constructor(
     public readonly name: string,
     private readonly listings: JobProviderListing[],
+    private readonly error?: Error,
   ) {}
 
   async search(): Promise<JobProviderListing[]> {
+    if (this.error) throw this.error;
     return this.listings;
   }
 }

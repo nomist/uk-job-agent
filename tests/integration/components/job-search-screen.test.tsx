@@ -49,6 +49,8 @@ describe("JobSearchScreen", () => {
       ],
       totalListingsFound: 1,
       isMock: false,
+      configuredProviders: ["ADZUNA"],
+      failedProviders: [],
     };
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(body));
     vi.stubGlobal("fetch", fetchMock);
@@ -67,7 +69,13 @@ describe("JobSearchScreen", () => {
   it("passes filter values (salaryMin, remoteOnly, provider) through to the API call", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
-      jsonResponse({ jobs: [], totalListingsFound: 0, isMock: false }),
+      jsonResponse({
+        jobs: [],
+        totalListingsFound: 0,
+        isMock: false,
+        configuredProviders: ["ADZUNA", "REED"],
+        failedProviders: [],
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -91,7 +99,15 @@ describe("JobSearchScreen", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ error: { message: "Upstream unavailable" } }, 502))
-      .mockResolvedValueOnce(jsonResponse({ jobs: [], totalListingsFound: 0, isMock: false }));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobs: [],
+          totalListingsFound: 0,
+          isMock: false,
+          configuredProviders: ["ADZUNA", "REED"],
+          failedProviders: [],
+        }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     render(<JobSearchScreen />);
@@ -115,6 +131,8 @@ describe("JobSearchScreen", () => {
         jobs: [],
         totalListingsFound: 0,
         isMock: true,
+        configuredProviders: [],
+        failedProviders: [],
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -132,7 +150,13 @@ describe("JobSearchScreen", () => {
 
   it("does not show the mock-data notice when the API reports isMock: false", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
-      jsonResponse({ jobs: [], totalListingsFound: 0, isMock: false }),
+      jsonResponse({
+        jobs: [],
+        totalListingsFound: 0,
+        isMock: false,
+        configuredProviders: ["ADZUNA", "REED"],
+        failedProviders: [],
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -144,6 +168,71 @@ describe("JobSearchScreen", () => {
     expect(
       screen.queryByText(/showing sample jobs because api keys are not configured/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows a distinct notice (not the mock notice) when zero real providers are configured", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      jsonResponse({
+        jobs: [],
+        totalListingsFound: 0,
+        isMock: false,
+        configuredProviders: [],
+        failedProviders: [],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<JobSearchScreen />);
+    await user.click(screen.getByRole("button", { name: /search/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/no job search providers are configured/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText(/showing sample jobs because api keys are not configured/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a degraded-provider notice naming the failed provider when one provider errors but results still come back", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      jsonResponse({
+        jobs: [],
+        totalListingsFound: 0,
+        isMock: false,
+        configuredProviders: ["ADZUNA", "REED"],
+        failedProviders: ["REED"],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<JobSearchScreen />);
+    await user.click(screen.getByRole("button", { name: /search/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/reed is temporarily unavailable/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("does not show the degraded-provider notice when no provider failed", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      jsonResponse({
+        jobs: [],
+        totalListingsFound: 0,
+        isMock: false,
+        configuredProviders: ["ADZUNA", "REED"],
+        failedProviders: [],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<JobSearchScreen />);
+    await user.click(screen.getByRole("button", { name: /search/i }));
+
+    await waitFor(() => expect(screen.getByText(/no jobs found/i)).toBeInTheDocument());
+    expect(screen.queryByText(/temporarily unavailable/i)).not.toBeInTheDocument();
   });
 
   it("saves a job from search results and immediately reflects it as saved", async () => {
@@ -171,6 +260,8 @@ describe("JobSearchScreen", () => {
       ],
       totalListingsFound: 1,
       isMock: false,
+      configuredProviders: ["ADZUNA"],
+      failedProviders: [],
     };
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
@@ -231,6 +322,8 @@ describe("JobSearchScreen", () => {
       ],
       totalListingsFound: 1,
       isMock: false,
+      configuredProviders: ["ADZUNA"],
+      failedProviders: [],
     };
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);

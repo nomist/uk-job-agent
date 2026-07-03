@@ -169,4 +169,63 @@ describe("GET /api/jobs", () => {
     expect(body.isMock).toBe(false);
     expect(body.jobs).toEqual([]);
   });
+
+  it("reports configuredProviders as empty when zero providers are wired", async () => {
+    handles = buildTestContainer({ jobProviders: [] });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+    const body = await response.json();
+
+    expect(body.configuredProviders).toEqual([]);
+  });
+
+  it("reports every wired provider's name in configuredProviders, regardless of the ?provider= filter", async () => {
+    handles = buildTestContainer({
+      jobProviders: [new FakeJobProvider("ADZUNA", []), new FakeJobProvider("REED", [])],
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs?provider=adzuna"));
+    const body = await response.json();
+
+    expect(body.configuredProviders.sort()).toEqual(["ADZUNA", "REED"]);
+  });
+
+  it("reports failedProviders and still returns the other provider's results when one provider errors", async () => {
+    handles = buildTestContainer({
+      jobProviders: [
+        new FakeJobProvider("ADZUNA", [
+          {
+            provider: "ADZUNA",
+            externalId: "1",
+            companyId: "c1",
+            title: "From Adzuna",
+            description: "d",
+            url: "https://example.com/jobs/1",
+            location: { country: "UK", isRemote: true },
+          },
+        ]),
+        new FakeJobProvider("REED", [], new Error("Reed is rate-limiting requests")),
+      ],
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.jobs).toHaveLength(1);
+    expect(body.jobs[0].title).toBe("From Adzuna");
+    expect(body.failedProviders).toEqual(["REED"]);
+  });
+
+  it("returns 502 when every configured provider fails", async () => {
+    const upstreamError = new Error("Adzuna responded with 500 Internal Server Error");
+    upstreamError.name = "AdzunaRequestError";
+    handles = buildTestContainer({
+      jobProviders: [new FakeJobProvider("ADZUNA", [], upstreamError)],
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/jobs"));
+
+    expect(response.status).toBe(502);
+  });
 });
