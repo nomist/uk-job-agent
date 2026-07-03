@@ -109,6 +109,8 @@ export function toMatchScoreJson(matchScore: MatchScore) {
     score: matchScore.score,
     confidence: { value: matchScore.confidence.value, band: matchScore.confidence.band },
     rationale: matchScore.rationale,
+    strengths: matchScore.strengths,
+    weaknesses: matchScore.weaknesses,
     missingSkills: matchScore.missingSkills,
     modelVersion: matchScore.modelVersion,
     isLatest: matchScore.isLatest,

@@ -51,8 +51,8 @@ describe("SuggestCVImprovementsUseCase", () => {
 
     const result = await useCase.execute({ resumeId: "r1" });
 
-    expect(result.suggestions).toHaveLength(1);
-    expect(result.suggestions[0].category).toBe("wording");
+    expect(result.suggestions).toHaveLength(2);
+    expect(result.suggestions[0].category).toBe("WORDING");
   });
 
   it("resolves the target job when targetJobId is given", async () => {

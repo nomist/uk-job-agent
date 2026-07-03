@@ -111,7 +111,7 @@ describe("OpenAiProvider", () => {
     it("returns parsed suggestions", async () => {
       const fetchImpl = vi.fn(async () =>
         chatCompletionResponse({
-          suggestions: [{ category: "wording", text: "x", priority: "LOW" }],
+          suggestions: [{ category: "WORDING", text: "x", priority: "LOW" }],
         }),
       );
       const provider = new OpenAiProvider(config, fetchImpl);

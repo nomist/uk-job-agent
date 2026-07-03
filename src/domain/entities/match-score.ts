@@ -11,6 +11,8 @@ export interface MatchScoreProps {
   rationale: string;
   modelVersion: string;
   generatedAt: Date;
+  strengths?: string[];
+  weaknesses?: string[];
   missingSkills?: string[];
   isLatest?: boolean;
 }
@@ -26,6 +28,8 @@ export class MatchScore {
     public readonly rationale: string,
     public readonly modelVersion: string,
     public readonly generatedAt: Date,
+    public readonly strengths: readonly string[],
+    public readonly weaknesses: readonly string[],
     public readonly missingSkills: readonly string[],
     public readonly isLatest: boolean,
   ) {}
@@ -65,6 +69,8 @@ export class MatchScore {
       rationale,
       modelVersion,
       props.generatedAt,
+      props.strengths ?? [],
+      props.weaknesses ?? [],
       props.missingSkills ?? [],
       props.isLatest ?? true,
     );
@@ -86,6 +92,8 @@ export class MatchScore {
       this.rationale,
       this.modelVersion,
       this.generatedAt,
+      this.strengths,
+      this.weaknesses,
       this.missingSkills,
       false,
     );

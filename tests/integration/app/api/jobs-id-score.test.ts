@@ -64,6 +64,8 @@ describe("POST /api/jobs/:id/score", () => {
     expect(response.status).toBe(200);
     expect(body.matchScore.score).toBe(80);
     expect(body.matchScore.confidence.band).toBe("HIGH");
+    expect(body.matchScore.strengths.length).toBeGreaterThan(0);
+    expect(body.matchScore.weaknesses.length).toBeGreaterThan(0);
     expect(body.matchScore.jobId).toBe("j1");
   });
 

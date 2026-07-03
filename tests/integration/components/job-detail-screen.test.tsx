@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("JobDetailScreen", () => {
-  it("loads and renders the job, and the three AI action cards without calling them", async () => {
+  it("loads and renders full job information, and the three AI action cards without calling them", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({ job }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -42,13 +42,56 @@ describe("JobDetailScreen", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
     expect(screen.getByText("acme")).toBeInTheDocument();
+    expect(screen.getByText("London, UK")).toBeInTheDocument();
     expect(screen.getByText("GBP 60,000 - 80,000")).toBeInTheDocument();
+    expect(screen.getByText("Adzuna")).toBeInTheDocument();
+    expect(screen.getByText("Build great things.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /view original listing/i })).toHaveAttribute(
+      "href",
+      "https://example.com/jobs/1",
+    );
 
+    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Score match" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate cover letter" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Improve CV" })).toBeInTheDocument();
     // Only the job fetch happened — no AI action was auto-triggered.
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies to the job and shows a confirmation, reusing POST /api/applications", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/applications") {
+        return jsonResponse({
+          application: {
+            id: "app1",
+            userId: "local-dev-user",
+            jobId: "j1",
+            resumeId: "default-resume",
+            status: "APPLIED",
+            appliedAt: "2026-01-02T00:00:00.000Z",
+            notes: null,
+            statusHistory: [],
+          },
+        });
+      }
+      return jsonResponse({ job });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<JobDetailScreen jobId="j1" />);
+    await waitFor(() => expect(screen.getByText("Staff Engineer")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(screen.getByText("Applied ✓")).toBeInTheDocument());
+    const applyCall = fetchMock.mock.calls.find((call) => String(call[0]) === "/api/applications");
+    expect(JSON.parse((applyCall?.[1] as RequestInit).body as string)).toEqual({
+      jobId: "j1",
+      userId: "local-dev-user",
+    });
   });
 
   it("shows an error state with retry when the job fails to load", async () => {
@@ -83,6 +126,8 @@ describe("JobDetailScreen", () => {
             score: 91,
             confidence: { value: 0.95, band: "HIGH" },
             rationale: "Excellent fit.",
+            strengths: ["Strong TypeScript background"],
+            weaknesses: [],
             missingSkills: [],
             modelVersion: "gpt-test",
             isLatest: true,

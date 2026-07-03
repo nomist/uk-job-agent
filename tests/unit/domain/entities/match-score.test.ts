@@ -24,6 +24,22 @@ describe("MatchScore", () => {
     expect(build().isLatest).toBe(true);
   });
 
+  it("defaults strengths, weaknesses, and missingSkills to empty arrays", () => {
+    const matchScore = build();
+    expect(matchScore.strengths).toEqual([]);
+    expect(matchScore.weaknesses).toEqual([]);
+    expect(matchScore.missingSkills).toEqual([]);
+  });
+
+  it("stores strengths and weaknesses when provided", () => {
+    const matchScore = build({
+      strengths: ["Strong TypeScript background"],
+      weaknesses: ["Limited leadership experience"],
+    });
+    expect(matchScore.strengths).toEqual(["Strong TypeScript background"]);
+    expect(matchScore.weaknesses).toEqual(["Limited leadership experience"]);
+  });
+
   it("rejects a score outside 0-100", () => {
     expect(() => build({ score: 101 })).toThrow(InvalidMatchScoreError);
     expect(() => build({ score: -1 })).toThrow(InvalidMatchScoreError);
@@ -39,13 +55,15 @@ describe("MatchScore", () => {
 
   describe("markSuperseded", () => {
     it("returns a new instance with isLatest false, leaving the original untouched", () => {
-      const original = build();
+      const original = build({ strengths: ["TypeScript"], weaknesses: ["Leadership"] });
       const superseded = original.markSuperseded();
 
       expect(original.isLatest).toBe(true);
       expect(superseded.isLatest).toBe(false);
       expect(superseded).not.toBe(original);
       expect(superseded.score).toBe(original.score);
+      expect(superseded.strengths).toEqual(original.strengths);
+      expect(superseded.weaknesses).toEqual(original.weaknesses);
     });
   });
 });

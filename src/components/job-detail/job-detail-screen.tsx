@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { ErrorState } from "@/components/jobs/error-state";
 import { LoadingState } from "@/components/jobs/loading-state";
+import { ActionButton } from "@/components/shared/action-button";
 import {
   formatDate,
   formatLocation,
   formatSalary,
   ProviderBadge,
 } from "@/components/shared/job-display";
+import { createApplication } from "@/lib/api/applications-client";
+import { CURRENT_USER_ID } from "@/lib/api/current-user";
 import { getJob, type JobSearchResult } from "@/lib/api/jobs-client";
 import { CoverLetterCard } from "./cover-letter-card";
 import { CvSuggestionsCard } from "./cv-suggestions-card";
@@ -50,6 +53,10 @@ export function JobDetailScreen({ jobId }: JobDetailScreenProps) {
     void fetchJob();
   }
 
+  async function handleApply(id: string) {
+    await createApplication(id, CURRENT_USER_ID);
+  }
+
   if (status === "loading") {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
@@ -86,14 +93,22 @@ export function JobDetailScreen({ jobId }: JobDetailScreenProps) {
           {posted ? <span>Posted {posted}</span> : null}
         </div>
 
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="self-start text-sm font-medium text-zinc-900 underline underline-offset-2 hover:no-underline dark:text-zinc-50"
-        >
-          View original listing
-        </a>
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:no-underline dark:text-zinc-50"
+          >
+            View original listing
+          </a>
+          <ActionButton
+            onClick={() => handleApply(job.id)}
+            idleLabel="Apply"
+            pendingLabel="Applying…"
+            doneLabel="Applied ✓"
+          />
+        </div>
 
         <p className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
           {job.description}

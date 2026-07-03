@@ -10,6 +10,8 @@ export class FakeAiProvider implements AiProvider {
     score: 80,
     confidence: 0.8,
     rationale: "Strong overlap on core skills.",
+    strengths: ["Strong TypeScript background", "Relevant domain experience"],
+    weaknesses: ["Limited leadership experience"],
     missingSkills: ["Kubernetes"],
     modelVersion: "fake-model-1",
   };
@@ -20,7 +22,10 @@ export class FakeAiProvider implements AiProvider {
   };
 
   cvSuggestionsResponse: AiCvSuggestionsResponse = {
-    suggestions: [{ category: "wording", text: "Quantify your impact.", priority: "MEDIUM" }],
+    suggestions: [
+      { category: "WORDING", text: "Quantify your impact.", priority: "MEDIUM" },
+      { category: "MISSING_SKILLS", text: "Add Kubernetes experience.", priority: "HIGH" },
+    ],
     modelVersion: "fake-model-1",
   };
 

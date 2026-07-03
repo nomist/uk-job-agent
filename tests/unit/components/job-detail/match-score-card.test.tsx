@@ -17,6 +17,8 @@ const matchScore: MatchScoreJson = {
   score: 82,
   confidence: { value: 0.9, band: "HIGH" },
   rationale: "Strong overlap on core skills.",
+  strengths: ["Strong TypeScript background", "Relevant domain experience"],
+  weaknesses: ["Limited leadership experience"],
   missingSkills: ["Kubernetes"],
   modelVersion: "gpt-test",
   isLatest: true,
@@ -51,6 +53,9 @@ describe("MatchScoreCard", () => {
     await waitFor(() => expect(screen.getByText("82/100")).toBeInTheDocument());
     expect(screen.getByText("High confidence")).toBeInTheDocument();
     expect(screen.getByText("Strong overlap on core skills.")).toBeInTheDocument();
+    expect(screen.getByText("Strong TypeScript background")).toBeInTheDocument();
+    expect(screen.getByText("Relevant domain experience")).toBeInTheDocument();
+    expect(screen.getByText("Limited leadership experience")).toBeInTheDocument();
     expect(screen.getByText(/Kubernetes/)).toBeInTheDocument();
     expect(button).not.toBeDisabled();
 
@@ -89,5 +94,34 @@ describe("MatchScoreCard", () => {
     await waitFor(() => expect(screen.getByText("Upstream unavailable")).toBeInTheDocument());
     // Previous result still visible.
     expect(screen.getByText("82/100")).toBeInTheDocument();
+  });
+
+  it("renders Reasoning, Strengths, and Weaknesses as labeled sections", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({ matchScore }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<MatchScoreCard jobId="j1" />);
+    await user.click(screen.getByRole("button", { name: "Score match" }));
+
+    await waitFor(() => expect(screen.getByText("Reasoning")).toBeInTheDocument());
+    expect(screen.getByText("Strengths")).toBeInTheDocument();
+    expect(screen.getByText("Weaknesses")).toBeInTheDocument();
+  });
+
+  it("omits the Strengths/Weaknesses headings when those lists are empty", async () => {
+    const user = userEvent.setup();
+    const emptyScore: MatchScoreJson = { ...matchScore, strengths: [], weaknesses: [] };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      jsonResponse({ matchScore: emptyScore }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<MatchScoreCard jobId="j1" />);
+    await user.click(screen.getByRole("button", { name: "Score match" }));
+
+    await waitFor(() => expect(screen.getByText("Reasoning")).toBeInTheDocument());
+    expect(screen.queryByText("Strengths")).not.toBeInTheDocument();
+    expect(screen.queryByText("Weaknesses")).not.toBeInTheDocument();
   });
 });

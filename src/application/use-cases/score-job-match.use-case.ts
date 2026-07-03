@@ -58,6 +58,8 @@ export class ScoreJobMatchUseCase {
       score: result.score,
       confidence: ConfidenceScore.create(result.confidence),
       rationale: result.rationale,
+      strengths: result.strengths,
+      weaknesses: result.weaknesses,
       missingSkills: result.missingSkills,
       modelVersion: result.modelVersion,
       generatedAt: this.now(),

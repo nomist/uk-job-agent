@@ -1,7 +1,6 @@
 "use client";
 
-import { useAiAction } from "@/components/shared/use-ai-action";
-import { scoreJobMatch, type MatchScoreJson } from "@/lib/api/ai-client";
+import { useMatchScore } from "./hooks/use-match-score";
 
 const CONFIDENCE_LABELS: Record<string, string> = {
   LOW: "Low confidence",
@@ -9,14 +8,23 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   HIGH: "High confidence",
 };
 
+function BulletList({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className="list-disc pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+      {items.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
 interface MatchScoreCardProps {
   jobId: string;
 }
 
 export function MatchScoreCard({ jobId }: MatchScoreCardProps) {
-  const { status, result, errorMessage, run } = useAiAction<MatchScoreJson>(() =>
-    scoreJobMatch(jobId),
-  );
+  const { status, result, errorMessage, run } = useMatchScore(jobId);
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
@@ -50,7 +58,7 @@ export function MatchScoreCard({ jobId }: MatchScoreCardProps) {
       ) : null}
 
       {result ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
               {result.score}/100
@@ -59,7 +67,26 @@ export function MatchScoreCard({ jobId }: MatchScoreCardProps) {
               {CONFIDENCE_LABELS[result.confidence.band]}
             </span>
           </div>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">{result.rationale}</p>
+
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Reasoning</h3>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">{result.rationale}</p>
+          </div>
+
+          {result.strengths.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Strengths</h3>
+              <BulletList items={result.strengths} />
+            </div>
+          ) : null}
+
+          {result.weaknesses.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Weaknesses</h3>
+              <BulletList items={result.weaknesses} />
+            </div>
+          ) : null}
+
           {result.missingSkills.length > 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Missing skills: {result.missingSkills.join(", ")}

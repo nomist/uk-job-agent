@@ -12,6 +12,8 @@ describe("parseMatchScoreResponse", () => {
       score: 82,
       confidence: 0.75,
       rationale: "Strong overlap.",
+      strengths: ["Strong TypeScript background"],
+      weaknesses: ["Limited leadership experience"],
       missingSkills: ["Kubernetes"],
     });
 
@@ -19,14 +21,20 @@ describe("parseMatchScoreResponse", () => {
       score: 82,
       confidence: 0.75,
       rationale: "Strong overlap.",
+      strengths: ["Strong TypeScript background"],
+      weaknesses: ["Limited leadership experience"],
       missingSkills: ["Kubernetes"],
       modelVersion: "gpt-4o-mini",
     });
   });
 
-  it("defaults missingSkills to an empty array when omitted", () => {
+  it("defaults strengths, weaknesses, and missingSkills to empty arrays when omitted", () => {
     const raw = JSON.stringify({ score: 50, confidence: 0.5, rationale: "OK fit." });
-    expect(parseMatchScoreResponse(raw, "gpt-4o-mini").missingSkills).toEqual([]);
+    const result = parseMatchScoreResponse(raw, "gpt-4o-mini");
+
+    expect(result.strengths).toEqual([]);
+    expect(result.weaknesses).toEqual([]);
+    expect(result.missingSkills).toEqual([]);
   });
 
   it("throws OpenAiResponseParseError for invalid JSON", () => {
@@ -64,11 +72,12 @@ describe("parseCoverLetterResponse", () => {
 describe("parseCvSuggestionsResponse", () => {
   it("parses a valid response", () => {
     const raw = JSON.stringify({
-      suggestions: [{ category: "wording", text: "Quantify impact.", priority: "MEDIUM" }],
+      suggestions: [{ category: "WORDING", text: "Quantify impact.", priority: "MEDIUM" }],
     });
     const result = parseCvSuggestionsResponse(raw, "gpt-4o-mini");
 
     expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions[0].category).toBe("WORDING");
     expect(result.suggestions[0].priority).toBe("MEDIUM");
   });
 
@@ -78,7 +87,14 @@ describe("parseCvSuggestionsResponse", () => {
 
   it("throws OpenAiResponseParseError for an invalid priority value", () => {
     const raw = JSON.stringify({
-      suggestions: [{ category: "wording", text: "x", priority: "URGENT" }],
+      suggestions: [{ category: "WORDING", text: "x", priority: "URGENT" }],
+    });
+    expect(() => parseCvSuggestionsResponse(raw, "gpt-4o-mini")).toThrow(OpenAiResponseParseError);
+  });
+
+  it("throws OpenAiResponseParseError for a category outside the fixed set", () => {
+    const raw = JSON.stringify({
+      suggestions: [{ category: "wording", text: "x", priority: "MEDIUM" }],
     });
     expect(() => parseCvSuggestionsResponse(raw, "gpt-4o-mini")).toThrow(OpenAiResponseParseError);
   });

@@ -59,8 +59,11 @@ describe("POST /api/jobs/:id/cv-suggestions", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.suggestions).toHaveLength(1);
-    expect(body.suggestions[0].category).toBe("wording");
+    expect(body.suggestions).toHaveLength(2);
+    expect(body.suggestions.map((s: { category: string }) => s.category)).toEqual([
+      "WORDING",
+      "MISSING_SKILLS",
+    ]);
   });
 
   it("returns 404 when the resume does not exist", async () => {
@@ -130,6 +133,6 @@ describe("POST /api/jobs/:id/cv-suggestions", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.suggestions).toHaveLength(1);
+    expect(body.suggestions).toHaveLength(2);
   });
 });

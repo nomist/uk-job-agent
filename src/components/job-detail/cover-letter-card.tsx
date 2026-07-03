@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAiAction } from "@/components/shared/use-ai-action";
-import { generateCoverLetter, type CoverLetterJson } from "@/lib/api/ai-client";
+import { useCoverLetter } from "./hooks/use-cover-letter";
 
 interface CopyButtonProps {
   text: string;
@@ -41,16 +40,27 @@ interface CoverLetterCardProps {
 }
 
 export function CoverLetterCard({ jobId }: CoverLetterCardProps) {
-  const { status, result, errorMessage, run } = useAiAction<CoverLetterJson>(() =>
-    generateCoverLetter(jobId, undefined),
-  );
+  const { status, result, errorMessage, run } = useCoverLetter(jobId);
+  // Local, editable copy of the generated content — the user can refine
+  // the AI's draft before copying it. Only re-synced from `result` when a
+  // *new* generation actually lands, so in-progress edits aren't
+  // clobbered by, say, a stale re-render.
+  const [editedContent, setEditedContent] = useState("");
+  const syncedResultRef = useRef<typeof result>(undefined);
+
+  useEffect(() => {
+    if (result && result !== syncedResultRef.current) {
+      setEditedContent(result.content);
+      syncedResultRef.current = result;
+    }
+  }, [result]);
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Cover letter</h2>
         <div className="flex items-center gap-2">
-          {result ? <CopyButton text={result.content} /> : null}
+          {result ? <CopyButton text={editedContent} /> : null}
           <button
             type="button"
             onClick={() => void run()}
@@ -80,9 +90,21 @@ export function CoverLetterCard({ jobId }: CoverLetterCardProps) {
       ) : null}
 
       {result ? (
-        <pre className="whitespace-pre-wrap rounded-md bg-zinc-50 p-3 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-          {result.content}
-        </pre>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="coverLetterContent" className="sr-only">
+            Cover letter content (editable)
+          </label>
+          <textarea
+            id="coverLetterContent"
+            value={editedContent}
+            onChange={(event) => setEditedContent(event.target.value)}
+            rows={14}
+            className="whitespace-pre-wrap rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+          />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Feel free to edit before copying — your changes aren&apos;t sent back to the AI.
+          </p>
+        </div>
       ) : status === "idle" ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Generate a tailored cover letter for this role.
