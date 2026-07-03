@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { AdzunaConfig } from "@/infrastructure/job-providers/adzuna/adzuna-config";
-import { AdzunaRequestError } from "@/infrastructure/job-providers/adzuna/adzuna-errors";
+import {
+  AdzunaRateLimitError,
+  AdzunaRequestError,
+} from "@/infrastructure/job-providers/adzuna/adzuna-errors";
 import { AdzunaJobProvider } from "@/infrastructure/job-providers/adzuna/adzuna-provider";
 import { AdzunaApiResponse } from "@/infrastructure/job-providers/adzuna/adzuna-types";
 
@@ -120,5 +123,33 @@ describe("AdzunaJobProvider", () => {
     const provider = new AdzunaJobProvider(config, fetchImpl);
 
     await expect(provider.search({})).rejects.toThrow(AdzunaRequestError);
+  });
+
+  it("throws AdzunaRateLimitError with retryAfterSeconds on a 429 response", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "rate limited" }), {
+          status: 429,
+          headers: { "Retry-After": "30" },
+        }),
+    );
+    const provider = new AdzunaJobProvider(config, fetchImpl);
+
+    const error = await provider.search({}).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AdzunaRateLimitError);
+    expect((error as AdzunaRateLimitError).retryAfterSeconds).toBe(30);
+  });
+
+  it("leaves retryAfterSeconds undefined when Adzuna doesn't send a Retry-After header", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ error: "rate limited" }), { status: 429 }),
+    );
+    const provider = new AdzunaJobProvider(config, fetchImpl);
+
+    const error = await provider.search({}).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AdzunaRateLimitError);
+    expect((error as AdzunaRateLimitError).retryAfterSeconds).toBeUndefined();
   });
 });

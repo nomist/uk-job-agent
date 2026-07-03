@@ -1,7 +1,7 @@
 import { JobProviderListing, JobProviderSearchParams } from "@/application/dto/job-provider.dto";
 import { JobProvider } from "@/application/ports/job-provider.port";
 import { AdzunaConfig, loadAdzunaConfig } from "./adzuna-config";
-import { AdzunaRequestError } from "./adzuna-errors";
+import { AdzunaRateLimitError, AdzunaRequestError } from "./adzuna-errors";
 import { mapAdzunaResultToListing } from "./adzuna-mapper";
 import { AdzunaApiResponse } from "./adzuna-types";
 
@@ -25,6 +25,13 @@ export class AdzunaJobProvider implements JobProvider {
       response = await this.fetchImpl(url);
     } catch (error) {
       throw new AdzunaRequestError(`Failed to reach Adzuna: ${(error as Error).message}`, error);
+    }
+
+    if (response.status === 429) {
+      throw new AdzunaRateLimitError(
+        "Adzuna is rate-limiting requests right now",
+        parseRetryAfter(response),
+      );
     }
 
     if (!response.ok) {
@@ -63,4 +70,11 @@ export class AdzunaJobProvider implements JobProvider {
 
     return url.toString();
   }
+}
+
+function parseRetryAfter(response: Response): number | undefined {
+  const header = response.headers.get("retry-after");
+  if (!header) return undefined;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) ? seconds : undefined;
 }

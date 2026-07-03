@@ -11,6 +11,14 @@ export type SearchJobsInput = JobProviderSearchParams;
 export interface SearchJobsResult {
   jobs: Job[];
   totalListingsFound: number;
+  /**
+   * Names of configured providers whose search() call failed this
+   * request (e.g. rate-limited, network error). A provider appearing here
+   * doesn't mean the search failed overall — results from the other
+   * provider(s) are still returned — but the caller (the route/UI) can use
+   * this to tell the user their results may be incomplete.
+   */
+  failedProviders: string[];
 }
 
 export class SearchJobsUseCase {
@@ -21,10 +29,29 @@ export class SearchJobsUseCase {
   ) {}
 
   async execute(input: SearchJobsInput): Promise<SearchJobsResult> {
-    const listingsByProvider = await Promise.all(
+    const settled = await Promise.allSettled(
       this.jobProviders.map((provider) => provider.search(input)),
     );
-    const listings = listingsByProvider.flat();
+
+    const listings: JobProviderListing[] = [];
+    const failedProviders: string[] = [];
+    settled.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        listings.push(...result.value);
+      } else {
+        failedProviders.push(this.jobProviders[index].name);
+      }
+    });
+
+    // A provider or two failing (rate limit, transient outage) shouldn't
+    // sink a search that other configured providers could still serve.
+    // Only surface the failure if *every* configured provider failed —
+    // returning an empty, "successful"-looking result in that case would
+    // be misleading (indistinguishable from a genuine zero-result search).
+    if (this.jobProviders.length > 0 && failedProviders.length === this.jobProviders.length) {
+      throw (settled[0] as PromiseRejectedResult).reason;
+    }
+
     const seenAt = this.now();
 
     const jobs: Job[] = [];
@@ -39,7 +66,7 @@ export class SearchJobsUseCase {
     const deduped = this.deduplicate(jobs);
     await this.jobRepository.saveMany(deduped);
 
-    return { jobs: deduped, totalListingsFound: listings.length };
+    return { jobs: deduped, totalListingsFound: listings.length, failedProviders };
   }
 
   private toNewJob(listing: JobProviderListing, seenAt: Date): Job {

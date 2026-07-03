@@ -44,6 +44,10 @@ export interface JobSearchResponse {
    * in production.
    */
   isMock: boolean;
+  /** Every provider actually configured, independent of this search's own results. Empty means no API keys are set up (and isMock is false, e.g. in production). */
+  configuredProviders: string[];
+  /** Providers that failed for this specific search (e.g. rate-limited) — results from the rest are still included. */
+  failedProviders: string[];
 }
 
 export interface JobSearchParams {

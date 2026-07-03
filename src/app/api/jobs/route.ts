@@ -43,10 +43,19 @@ export async function GET(request: NextRequest) {
     // concern, matching how providerNames filtering already works.
     const isMock = container.dependencies.jobProviders.some((provider) => provider.name === "MOCK");
 
+    // Every provider actually configured (independent of this request's
+    // ?provider= filter) — lets the UI distinguish "you have zero API keys
+    // set up" from "this specific search genuinely found nothing".
+    const configuredProviders = container.dependencies.jobProviders.map(
+      (provider) => provider.name,
+    );
+
     return NextResponse.json({
       jobs: jobs.map(toJobJson),
       totalListingsFound: result.totalListingsFound,
       isMock,
+      configuredProviders,
+      failedProviders: result.failedProviders,
     });
   } catch (error) {
     return handleApiError(error);

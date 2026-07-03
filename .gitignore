@@ -30,8 +30,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — .env.example is the one intentional exception: it documents
+# every variable (with no real values) and must be committed so a fresh
+# clone has it.
 .env*
+!.env.example
 
 # sqlite dev/test database
 *.db

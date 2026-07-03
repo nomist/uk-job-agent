@@ -5,7 +5,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
-const emptyResponse: JobSearchResponse = { jobs: [], totalListingsFound: 0, isMock: false };
+const emptyResponse: JobSearchResponse = {
+  jobs: [],
+  totalListingsFound: 0,
+  isMock: false,
+  configuredProviders: ["ADZUNA", "REED"],
+  failedProviders: [],
+};
 
 describe("searchJobs", () => {
   it("requests /api/jobs with no query string when no params are given", async () => {
@@ -66,6 +72,8 @@ describe("searchJobs", () => {
       ],
       totalListingsFound: 1,
       isMock: false,
+      configuredProviders: ["ADZUNA"],
+      failedProviders: [],
     };
     const fetchImpl = vi.fn(async () => jsonResponse(body));
 

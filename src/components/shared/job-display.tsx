@@ -4,7 +4,7 @@ import type { JobSearchResult } from "@/lib/api/jobs-client";
 // formatting/labeling, no business logic (nothing here decides what's
 // allowed, only how to display it).
 
-const PROVIDER_LABELS: Record<string, string> = {
+export const PROVIDER_LABELS: Record<string, string> = {
   ADZUNA: "Adzuna",
   REED: "Reed",
 };

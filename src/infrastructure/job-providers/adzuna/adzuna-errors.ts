@@ -5,3 +5,20 @@ export class AdzunaRequestError extends Error {
     this.name = "AdzunaRequestError";
   }
 }
+
+/**
+ * Distinguished from the generic request error so a caller can implement
+ * backoff/retry using `retryAfterSeconds` (from the `Retry-After` header,
+ * when Adzuna provides it) instead of treating a 429 the same as any other
+ * failure. Mirrors OpenAiRateLimitError.
+ */
+export class AdzunaRateLimitError extends AdzunaRequestError {
+  constructor(
+    message: string,
+    public readonly retryAfterSeconds?: number,
+    cause?: unknown,
+  ) {
+    super(message, cause);
+    this.name = "AdzunaRateLimitError";
+  }
+}

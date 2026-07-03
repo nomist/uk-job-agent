@@ -104,4 +104,55 @@ describe("SearchJobsUseCase", () => {
 
     expect(result.jobs.every((job) => !job.canonicalJobId)).toBe(true);
   });
+
+  it("returns an empty failedProviders list when every provider succeeds", async () => {
+    const jobRepository = new InMemoryJobRepository();
+    const provider = new FakeJobProvider("ADZUNA", [baseListing()]);
+    const useCase = new SearchJobsUseCase([provider], jobRepository);
+
+    const result = await useCase.execute({});
+
+    expect(result.failedProviders).toEqual([]);
+  });
+
+  it("still returns the other provider's results when one provider fails", async () => {
+    const jobRepository = new InMemoryJobRepository();
+    const adzuna = new FakeJobProvider("ADZUNA", [baseListing({ externalId: "a1" })]);
+    const reed = new FakeJobProvider("REED", [], new Error("Reed is rate-limiting requests"));
+    const useCase = new SearchJobsUseCase([adzuna, reed], jobRepository);
+
+    const result = await useCase.execute({});
+
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].provider).toBe("ADZUNA");
+    expect(result.failedProviders).toEqual(["REED"]);
+  });
+
+  it("throws the original error when every configured provider fails", async () => {
+    const jobRepository = new InMemoryJobRepository();
+    const failure = new Error("Adzuna is rate-limiting requests");
+    const adzuna = new FakeJobProvider("ADZUNA", [], failure);
+    const useCase = new SearchJobsUseCase([adzuna], jobRepository);
+
+    await expect(useCase.execute({})).rejects.toThrow(failure);
+  });
+
+  it("throws when all of multiple configured providers fail", async () => {
+    const jobRepository = new InMemoryJobRepository();
+    const adzuna = new FakeJobProvider("ADZUNA", [], new Error("Adzuna down"));
+    const reed = new FakeJobProvider("REED", [], new Error("Reed down"));
+    const useCase = new SearchJobsUseCase([adzuna, reed], jobRepository);
+
+    await expect(useCase.execute({})).rejects.toThrow();
+  });
+
+  it("does not throw when zero providers are configured (returns an empty result)", async () => {
+    const jobRepository = new InMemoryJobRepository();
+    const useCase = new SearchJobsUseCase([], jobRepository);
+
+    const result = await useCase.execute({});
+
+    expect(result.jobs).toEqual([]);
+    expect(result.failedProviders).toEqual([]);
+  });
 });
