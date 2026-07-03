@@ -3,8 +3,8 @@ import { z } from "zod";
 import { handleApiError } from "@/app/api/_lib/handle-api-error";
 import { parseJsonBody, parseQuery } from "@/app/api/_lib/parse-request";
 import { toApplicationJson, toJobJson } from "@/app/api/_lib/serializers";
+import { ensureDefaultResume } from "@/app/api/_lib/ensure-default-resume";
 import { getContainer } from "@/lib/di/get-container";
-import { ensureDefaultResumeId } from "./_lib/ensure-default-resume";
 
 const listApplicationsQuerySchema = z.object({
   userId: z.string().trim().min(1),
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request, createApplicationBodySchema);
 
     const container = getContainer();
-    const resumeId = body.resumeId ?? (await ensureDefaultResumeId(container, body.userId));
+    const resumeId = body.resumeId ?? (await ensureDefaultResume(container, body.userId)).resumeId;
     const application = await container.createApplication().execute({ ...body, resumeId });
 
     return NextResponse.json({ application: toApplicationJson(application) }, { status: 201 });

@@ -105,7 +105,7 @@ describe("POST /api/jobs/:id/score", () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns 400 when profileId is missing", async () => {
+  it("returns 400 when neither profileId nor userId is given", async () => {
     handles = buildTestContainer();
     seedAll(handles);
 
@@ -114,5 +114,34 @@ describe("POST /api/jobs/:id/score", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it("resolves a default profile and resume when only userId is given (no profileId)", async () => {
+    handles = buildTestContainer();
+    handles.jobRepository.seed(
+      Job.create({
+        id: "j1",
+        companyId: "c1",
+        provider: "ADZUNA",
+        externalId: "j1",
+        title: "Staff Engineer",
+        description: "desc",
+        url: "https://example.com/jobs/1",
+        location: Location.create({ country: "UK", isRemote: true }),
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      }),
+    );
+    // No profile or resume seeded for u2 — the route must resolve defaults itself.
+
+    const response = await POST(
+      jsonRequest("http://localhost/api/jobs/j1/score", { userId: "u2" }),
+      { params: Promise.resolve({ id: "j1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.matchScore.profileId).not.toBeNull();
+    expect(body.matchScore.resumeId).not.toBeNull();
   });
 });

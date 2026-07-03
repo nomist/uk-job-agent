@@ -75,9 +75,10 @@ describe("JobCard", () => {
     expect(screen.getByText("Reed")).toBeInTheDocument();
   });
 
-  it("renders a disabled Score match placeholder button", () => {
-    render(<JobCard job={buildJob()} />);
-    expect(screen.getByRole("button", { name: "Score match" })).toBeDisabled();
+  it("renders a link to the job detail page for AI actions", () => {
+    render(<JobCard job={buildJob({ id: "job-42" })} />);
+    const link = screen.getByRole("link", { name: /match score, cover letter/i });
+    expect(link).toHaveAttribute("href", "/jobs/job-42");
   });
 
   it("renders a non-interactive Save placeholder when no onSave handler is given", () => {

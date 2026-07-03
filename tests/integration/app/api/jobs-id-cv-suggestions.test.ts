@@ -95,7 +95,7 @@ describe("POST /api/jobs/:id/cv-suggestions", () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns 400 when resumeId is missing", async () => {
+  it("returns 400 when neither resumeId nor userId is given", async () => {
     handles = buildTestContainer();
     seedAll(handles);
 
@@ -104,5 +104,32 @@ describe("POST /api/jobs/:id/cv-suggestions", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it("resolves a default resume when only userId is given (no resumeId)", async () => {
+    handles = buildTestContainer();
+    handles.jobRepository.seed(
+      Job.create({
+        id: "j1",
+        companyId: "c1",
+        provider: "ADZUNA",
+        externalId: "j1",
+        title: "Staff Engineer",
+        description: "desc",
+        url: "https://example.com/jobs/1",
+        location: Location.create({ country: "UK", isRemote: true }),
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      }),
+    );
+
+    const response = await POST(
+      jsonRequest("http://localhost/api/jobs/j1/cv-suggestions", { userId: "u2" }),
+      { params: Promise.resolve({ id: "j1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.suggestions).toHaveLength(1);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { JobSearchResult } from "@/lib/api/jobs-client";
 import {
   formatDate,
@@ -107,6 +108,12 @@ export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
         >
           View original listing
         </a>
+        <Link
+          href={`/jobs/${job.id}`}
+          className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:no-underline dark:text-zinc-400"
+        >
+          Match score, cover letter &amp; CV tips
+        </Link>
         <span className="flex-1" />
         {savedAt ? null : onSave ? (
           <ActionButton
@@ -128,14 +135,6 @@ export function JobCard({ job, onSave, savedAt, onMarkApplied }: JobCardProps) {
             doneLabel="Applied ✓"
           />
         ) : null}
-        <button
-          type="button"
-          disabled
-          title="Coming soon"
-          className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-400 disabled:cursor-not-allowed dark:border-zinc-700 dark:text-zinc-600"
-        >
-          Score match
-        </button>
       </div>
     </article>
   );

@@ -2,22 +2,31 @@ import { Profile } from "@/domain/entities/profile";
 import { Resume } from "@/domain/entities/resume";
 import type { Container } from "@/lib/di/container";
 
+export interface DefaultResumeResult {
+  profileId: string;
+  resumeId: string;
+}
+
 /**
- * CreateApplicationUseCase requires a real resumeId (the Feature Spec
- * requires selecting a resume when marking a job Applied — see its own
- * comment), but no resume-management UI/route exists yet. Mirrors the
- * Company/User foreign-key stopgaps elsewhere in this codebase: if the
- * caller didn't supply a resumeId, ensure this user has a Profile and a
- * primary Resume (creating clearly-labeled placeholders if not) so
- * "Mark as applied" isn't blocked, and return that resume's id.
+ * CreateApplicationUseCase, ScoreJobMatchUseCase, and
+ * GenerateCoverLetterUseCase all require a real profileId/resumeId (the
+ * Feature Spec requires selecting a resume for these flows — see
+ * CreateApplicationUseCase's own comment), but no resume-management UI/route
+ * exists yet. Mirrors the Company/User foreign-key stopgaps elsewhere in
+ * this codebase: if the caller didn't supply one, ensure this user has a
+ * Profile and a primary Resume (creating clearly-labeled placeholders if
+ * not) so these actions aren't blocked, and return both ids.
  *
- * This lives at the HTTP boundary, not in CreateApplicationUseCase itself
- * — the use case's "resumeId is required" rule is a real, unchanged
+ * This lives at the HTTP boundary, not in the use cases themselves — each
+ * use case's "profileId/resumeId is required" rule is a real, unchanged
  * business rule; this only fills in a sensible default for our own UI's
  * benefit, using existing repository methods (no new Application-layer
  * surface).
  */
-export async function ensureDefaultResumeId(container: Container, userId: string): Promise<string> {
+export async function ensureDefaultResume(
+  container: Container,
+  userId: string,
+): Promise<DefaultResumeResult> {
   const { profileRepository, resumeRepository } = container.dependencies;
 
   // Deterministic ids (not randomUUID()) — same reasoning as the Company/User
@@ -34,7 +43,7 @@ export async function ensureDefaultResumeId(container: Container, userId: string
 
   const existingResume = await resumeRepository.findPrimaryByProfileId(profile.id);
   if (existingResume) {
-    return existingResume.id;
+    return { profileId: profile.id, resumeId: existingResume.id };
   }
 
   const resume = Resume.create({
@@ -46,5 +55,5 @@ export async function ensureDefaultResumeId(container: Container, userId: string
     createdAt: new Date(),
   });
   await resumeRepository.save(resume);
-  return resume.id;
+  return { profileId: profile.id, resumeId: resume.id };
 }
