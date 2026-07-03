@@ -16,6 +16,14 @@ export class PrismaResumeRepository implements ResumeRepository {
     return row ? toDomainResume(row) : null;
   }
 
+  async findByProfileId(profileId: string): Promise<Resume[]> {
+    const rows = await this.prisma.resume.findMany({
+      where: { profileId },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(toDomainResume);
+  }
+
   async save(resume: Resume): Promise<void> {
     await this.prisma.resume.upsert({
       where: { id: resume.id },

@@ -82,4 +82,44 @@ describe("PrismaResumeRepository", () => {
   it("returns null for an unknown id", async () => {
     expect(await repository.findById("missing")).toBeNull();
   });
+
+  it("findByProfileId returns all resumes for a profile, most recently created first", async () => {
+    const profile = await seedProfile(prisma);
+    const older = Resume.create({
+      id: randomUUID(),
+      profileId: profile.id,
+      label: "Older",
+      content: "content",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    const newer = Resume.create({
+      id: randomUUID(),
+      profileId: profile.id,
+      label: "Newer",
+      content: "content",
+      createdAt: new Date("2026-02-01T00:00:00Z"),
+    });
+    await repository.save(older);
+    await repository.save(newer);
+
+    const found = await repository.findByProfileId(profile.id);
+
+    expect(found.map((resume) => resume.id)).toEqual([newer.id, older.id]);
+  });
+
+  it("findByProfileId excludes another profile's resumes", async () => {
+    const profileA = await seedProfile(prisma);
+    const profileB = await seedProfile(prisma);
+    await repository.save(
+      Resume.create({
+        id: randomUUID(),
+        profileId: profileB.id,
+        label: "Someone else's resume",
+        content: "content",
+        createdAt: new Date(),
+      }),
+    );
+
+    expect(await repository.findByProfileId(profileA.id)).toEqual([]);
+  });
 });

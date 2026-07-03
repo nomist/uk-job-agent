@@ -2,6 +2,8 @@ import { SavedJobRecord } from "@/application/dto/saved-job.dto";
 import { Application } from "@/domain/entities/application";
 import { Job } from "@/domain/entities/job";
 import { MatchScore } from "@/domain/entities/match-score";
+import { Profile } from "@/domain/entities/profile";
+import { Resume } from "@/domain/entities/resume";
 
 // Plain-JSON projections of domain entities / DTOs — Dates become ISO
 // strings, value objects become plain objects. Kept alongside the route
@@ -62,6 +64,39 @@ export function toApplicationJson(application: Application) {
       changedAt: change.changedAt.toISOString(),
       note: change.note ?? null,
     })),
+  };
+}
+
+export function toProfileJson(profile: Profile) {
+  return {
+    id: profile.id,
+    userId: profile.userId,
+    headline: profile.headline ?? null,
+    yearsOfExperience: profile.yearsOfExperience ?? null,
+    skills: profile.skills,
+    preferredLocations: profile.preferredLocations,
+    workPreferences: profile.workPreferences,
+    visaStatus: profile.visaStatus,
+    salaryExpectation: profile.salaryExpectation
+      ? {
+          min: profile.salaryExpectation.min,
+          max: profile.salaryExpectation.max,
+          currency: profile.salaryExpectation.currency,
+        }
+      : null,
+    updatedAt: profile.updatedAt.toISOString(),
+  };
+}
+
+export function toResumeJson(resume: Resume) {
+  return {
+    id: resume.id,
+    profileId: resume.profileId,
+    label: resume.label,
+    content: resume.content,
+    parsedSkills: resume.parsedSkills,
+    isPrimary: resume.isPrimary,
+    createdAt: resume.createdAt.toISOString(),
   };
 }
 

@@ -10,8 +10,20 @@ describe("Profile", () => {
     const profile = Profile.create({ id: "p1", userId: "u1", updatedAt: now });
 
     expect(profile.skills).toEqual([]);
+    expect(profile.preferredLocations).toEqual([]);
     expect(profile.workPreferences).toEqual([]);
     expect(profile.visaStatus).toBe("UNKNOWN");
+  });
+
+  it("stores preferred locations", () => {
+    const profile = Profile.create({
+      id: "p1",
+      userId: "u1",
+      updatedAt: now,
+      preferredLocations: ["London", "Manchester", "Remote"],
+    });
+
+    expect(profile.preferredLocations).toEqual(["London", "Manchester", "Remote"]);
   });
 
   it("rejects negative years of experience", () => {

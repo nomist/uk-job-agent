@@ -15,6 +15,7 @@ export function toDomainProfile(row: Prisma.ProfileModel): Profile {
     headline: row.headline ?? undefined,
     yearsOfExperience: row.yearsOfExperience ?? undefined,
     skills: JSON.parse(row.skills) as string[],
+    preferredLocations: JSON.parse(row.preferredLocations) as string[],
     workPreferences: JSON.parse(row.workPreferences) as WorkMode[],
     visaStatus: row.visaStatus,
     salaryExpectation: hasSalary
@@ -37,6 +38,7 @@ export function toProfileRow(profile: Profile) {
     // string[] / WorkMode[] on the domain entity — SQLite has no native
     // array type, so these round-trip through a JSON-encoded string.
     skills: JSON.stringify(profile.skills),
+    preferredLocations: JSON.stringify(profile.preferredLocations),
     workPreferences: JSON.stringify(profile.workPreferences),
     visaStatus: profile.visaStatus,
     salaryExpectationMin: profile.salaryExpectation?.min ?? null,

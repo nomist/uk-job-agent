@@ -7,14 +7,18 @@ import { ResumeRepository } from "@/application/ports/resume-repository.port";
 import { SavedJobRepository } from "@/application/ports/saved-job-repository.port";
 import { CreateApplicationUseCase } from "@/application/use-cases/create-application.use-case";
 import { DismissJobUseCase } from "@/application/use-cases/dismiss-job.use-case";
+import { CreateResumeUseCase } from "@/application/use-cases/create-resume.use-case";
 import { GenerateCoverLetterUseCase } from "@/application/use-cases/generate-cover-letter.use-case";
 import { ListApplicationsUseCase } from "@/application/use-cases/list-applications.use-case";
+import { ListResumesUseCase } from "@/application/use-cases/list-resumes.use-case";
 import { ListSavedJobsUseCase } from "@/application/use-cases/list-saved-jobs.use-case";
 import { SaveJobUseCase } from "@/application/use-cases/save-job.use-case";
 import { ScoreJobMatchUseCase } from "@/application/use-cases/score-job-match.use-case";
 import { SearchJobsUseCase } from "@/application/use-cases/search-jobs.use-case";
+import { SetPrimaryResumeUseCase } from "@/application/use-cases/set-primary-resume.use-case";
 import { SuggestCVImprovementsUseCase } from "@/application/use-cases/suggest-cv-improvements.use-case";
 import { UpdateApplicationStatusUseCase } from "@/application/use-cases/update-application-status.use-case";
+import { UpsertProfileUseCase } from "@/application/use-cases/upsert-profile.use-case";
 import { PrismaClient } from "@/generated/prisma/client";
 import { hasAdzunaCredentials } from "@/infrastructure/job-providers/adzuna/adzuna-config";
 import { AdzunaJobProvider } from "@/infrastructure/job-providers/adzuna/adzuna-provider";
@@ -56,6 +60,10 @@ export interface Container {
   createApplication(): CreateApplicationUseCase;
   updateApplicationStatus(): UpdateApplicationStatusUseCase;
   listApplications(): ListApplicationsUseCase;
+  upsertProfile(): UpsertProfileUseCase;
+  listResumes(): ListResumesUseCase;
+  createResume(): CreateResumeUseCase;
+  setPrimaryResume(): SetPrimaryResumeUseCase;
   scoreJobMatch(): ScoreJobMatchUseCase;
   generateCoverLetter(): GenerateCoverLetterUseCase;
   suggestCvImprovements(): SuggestCVImprovementsUseCase;
@@ -205,6 +213,12 @@ export function createContainer(overrides: Partial<ContainerDependencies> = {}):
       new UpdateApplicationStatusUseCase(dependencies.applicationRepository),
     listApplications: () =>
       new ListApplicationsUseCase(dependencies.applicationRepository, dependencies.jobRepository),
+    upsertProfile: () => new UpsertProfileUseCase(dependencies.profileRepository),
+    listResumes: () =>
+      new ListResumesUseCase(dependencies.profileRepository, dependencies.resumeRepository),
+    createResume: () =>
+      new CreateResumeUseCase(dependencies.profileRepository, dependencies.resumeRepository),
+    setPrimaryResume: () => new SetPrimaryResumeUseCase(dependencies.resumeRepository),
     scoreJobMatch: () =>
       new ScoreJobMatchUseCase(
         dependencies.jobRepository,

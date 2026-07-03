@@ -10,6 +10,7 @@ export interface ProfileProps {
   yearsOfExperience?: number;
   skills?: string[];
   salaryExpectation?: SalaryRange;
+  preferredLocations?: string[];
   workPreferences?: WorkMode[];
   visaStatus?: VisaStatus;
   updatedAt: Date;
@@ -20,6 +21,7 @@ export class Profile {
     public readonly id: string,
     public readonly userId: string,
     public readonly skills: readonly string[],
+    public readonly preferredLocations: readonly string[],
     public readonly workPreferences: readonly WorkMode[],
     public readonly visaStatus: VisaStatus,
     public readonly updatedAt: Date,
@@ -46,6 +48,7 @@ export class Profile {
       id,
       userId,
       props.skills ?? [],
+      props.preferredLocations ?? [],
       props.workPreferences ?? [],
       props.visaStatus ?? "UNKNOWN",
       props.updatedAt,
